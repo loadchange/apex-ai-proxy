@@ -1,26 +1,13 @@
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "apex-ai-proxy",
-	"main": "src/index.ts",
-	"compatibility_date": "2025-02-14",
-	"observability": {
-		"enabled": true
-	},
-
-	/**
-	 * Environment Variables
-	 * AZURE_CONFIGS should be a JSON string array of configurations:
-	 * [
-	 *   {
-	 *     "endpoint": "your-resource", // "https://your-resource.openai.azure.com",
-	 *	   "protocol": "services.ai", // "services.ai" or "openai"
-	 *     "apiKey": "your-api-key",
-	 *     "deploymentNames": ["deployment1", "deployment2"]
-	 *   }
-	 * ]
-	 */
-	"vars": {
-		"SERVICE_API_KEY": "your-service-key-here",
-		"AZURE_CONFIGS": ""
-	}
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "apex-ai-proxy",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-02-14",
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "MODEL_PROVIDER_CONFIG": "",
+    "SERVICE_API_KEY": ""
+  }
 }

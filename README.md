@@ -34,7 +34,7 @@ pnpm install
 ```json
 {
   "vars": {
-		"SERVICE_API_KEY": "sk-0x4e5212a130ccb594f68ad050ac43423cacb48e85",
+		"SERVICE_API_KEY": "sk-4e5212a130ccb594f68ad050ac43423cacb48e85",
     "AZURE_CONFIGS": "[{
       \"endpoint\": \"your-resource\",
       \"protocol\": \"services.ai\",
@@ -65,7 +65,7 @@ from openai import OpenAI
 
 client = OpenAI(
     base_url="https://your-proxy.workers.dev/v1",
-    api_key="sk-0x4e5212a130ccb594f68ad050ac43423cacb48e85"
+    api_key="sk-4e5212a130ccb594f68ad050ac43423cacb48e85"
 )
 
 response = client.chat.completions.create(
