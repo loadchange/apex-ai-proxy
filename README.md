@@ -1,63 +1,87 @@
-# 🚀 Apex AI Proxy: Your Azure-to-OpenAI Bridge with DeepSeek R1 Superpowers
+# 🚀 Apex AI Proxy: Your Free Personal AI Gateway
 
 [![Deploy to Cloudflare Workers](https://img.shields.io/badge/Deploy%20to-CF%20Workers-%23F38020?style=for-the-badge&logo=cloudflare)](https://dash.cloudflare.com/?to=/:account/workers-and-pages)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-Tired of Azure's API peculiarities cramping your style? 😤 Want to use that blazing-fast ⚡ DeepSeek R1 model through standard OpenAI clients? Our proxy is your genie in a Cloudflare bottle! 🧞♂️
+[中文文档](README.zh-CN.md)
 
-**Why you'll care**: This isn't just another Azure proxy - it's your golden ticket to:
-- 🆓 **Free-tier magic**: Runs entirely on Cloudflare's Workers free plan
-- 🚀 **DeepSeek R1 optimized**: Cut through Azure's API weirdness like a hot knife through butter
-- 🤖 **OpenAI client compatibility**: Works with ANY library that speaks OpenAI
+Apex AI Proxy is a free, personal AI Gateway that runs on Cloudflare Workers. It aggregates multiple AI service providers behind a unified OpenAI-compatible API, allowing you to overcome rate limits and take advantage of free quotas from different providers.
 
-## Features That Don't Suck ✨
+**Why you'll care**:
+- 🆓 **Completely Free**: Runs entirely on Cloudflare Workers' free plan
+- 🔄 **Load Balancing**: Distributes requests across multiple providers to overcome rate limits
+- 💰 **Maximize Free Quotas**: Take advantage of free tiers from different AI providers
+- 🔑 **Multiple API Keys**: Register multiple keys for the same service provider
+- 🤖 **OpenAI Client Compatible**: Works with any library that speaks OpenAI's API format
 
-- 🔄 **Automatic protocol translation** (Azure-speak → OpenAI-ish)
-- 🔥 **DeepSeek R1 first-class support** (Our original raison d'être)
-- 🧩 **Multi-deployment management** (Like herding cats, but easier)
-- 🛡️ **Error handling** that doesn't make you want to cry
+## Features ✨
+
+- 🌐 **Multi-Provider Support**: Aggregate Azure, DeepSeek, Aliyun, and more behind one API
+- 🔀 **Smart Request Distribution**: Automatically routes requests to available providers
+- 🔑 **Multiple API Key Management**: Register multiple keys for the same provider to further increase limits
+- 🔄 **Protocol Translation**: Handles different provider authentication methods and API formats
+- 🛡️ **Robust Error Handling**: Gracefully handles provider errors and failover
 
 ## Get Started in 60 Seconds ⏱️
 
-1. **Clone this bad boy**:
+1. **Clone the repository**:
 ```bash
 git clone https://github.com/loadchange/apex-ai-proxy.git
 cd apex-ai-proxy
 ```
 
-2. **Install the good stuff**:
+2. **Install dependencies**:
 ```bash
 pnpm install
 ```
 
-3. **Configure your Azure secrets** (in `wrangler.jsonc`):
-```json
-{
-  "vars": {
-		"SERVICE_API_KEY": "sk-4e5212a130ccb594f68ad050ac43423cacb48e85",
-    "AZURE_CONFIGS": "[{
-      \"endpoint\": \"your-resource\",
-      \"protocol\": \"services.ai\",
-      \"apiKey\": \"your-azure-key\",
-      \"deploymentNames\": [\"deepseek-r1-8k\", \"gpt-4-turbo\"]
-    }]"
-  }
-}
+3. **Configure your providers** (in `wrangler-config.js`):
+```javascript
+const modelProviderConfig = {
+  'gpt-4o-mini': {
+    providers: [
+      {
+        provider: 'azure',
+        base_url: 'https://your-azure-endpoint.com/openai/deployments/gpt-4o-mini',
+        api_key: 'your-azure-key',
+        model: 'gpt-4o-mini',
+      },
+      // Add more providers for the same model
+    ],
+  },
+  'DeepSeek-R1': {
+    providers: [
+      {
+        provider: 'aliyuncs',
+        base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        api_key: 'your-aliyun-key',
+        model: 'deepseek-r1',
+      },
+      // Multiple keys for the same provider
+      {
+        provider: 'deepinfra',
+        base_url: 'https://api.deepinfra.com/v1/openai',
+        api_key: 'your-deepinfra-key',
+        model: 'deepseek-ai/DeepSeek-R1',
+      },
+    ],
+  },
+};
 ```
 
-4. **Deploy like a boss**:
+4. **Deploy to Cloudflare Workers**:
 ```bash
 pnpm run deploy
 ```
 
-## Why You'll Love This ❤️
+## Why This Solves Your Problems
 
-Perfect for when you:
-- 🤯 Need DeepSeek R1's speed but hate Azure's API quirks
-- 💸 Want OpenAI compatibility without the OpenAI prices
-- 🚫 Can't be bothered setting up yet another proxy server
+- **Rate Limit Issues**: By distributing requests across multiple providers, you can overcome rate limits imposed by individual services
+- **Cost Optimization**: Take advantage of free tiers from different providers
+- **API Consistency**: Use a single, consistent API format (OpenAI-compatible) regardless of the underlying provider
+- **Simplified Integration**: No need to modify your existing code that uses OpenAI clients
 
-## Usage Made Stupid Simple
+## Usage Example
 
 ```python
 # Works with ANY OpenAI client!
@@ -65,34 +89,37 @@ from openai import OpenAI
 
 client = OpenAI(
     base_url="https://your-proxy.workers.dev/v1",
-    api_key="sk-4e5212a130ccb594f68ad050ac43423cacb48e85"
+    api_key="your-configured-api-key"
 )
 
+# Use any model you've configured in your proxy
 response = client.chat.completions.create(
-    model="DeepSeek-R1",  # Your Azure deployment name
+    model="DeepSeek-R1",  # This will be routed to one of your configured providers
     messages=[{"role": "user", "content": "Why is this proxy awesome?"}]
 )
 ```
 
-## When Things Go Wrong (We've Got Your Back) 🤞
+## Multiple API Keys Configuration
 
-Our errors are almost as helpful as you wish Azure's were:
-```json
+You can configure multiple API keys for the same provider to further increase your rate limits:
+
+```javascript
 {
-  "error": {
-    "message": "Azure says 'nope' 🤷♂️",
-    "type": "azure_being_azure",
-    "code": 418,  // (We make these numbers up to be more helpful)
-    "doc_url": "https://github.com/loadchange/apex-ai-proxy/wiki/Error-418"
-  }
+  provider: 'aliyuncs',
+  base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  api_keys: [
+    'your-first-aliyun-key',
+    'your-second-aliyun-key',
+    'your-third-aliyun-key'
+  ],
+  model: 'deepseek-r1',
 }
 ```
 
 ## Contributing
 
-Found a bug? 🐛 Want more magic? PRs welcome!
+Found a bug or want to add support for more providers? PRs are welcome!
 
-
-## Ready to Supercharge Your AI Workflow? 🚀
+## Ready to Break Free from Rate Limits? 🚀
 
 [![Deploy Button](https://img.shields.io/badge/Deploy%20Now-%E2%86%92-%23FF6A00?style=for-the-badge&logo=cloudflare)](https://dash.cloudflare.com/?to=/:account/workers-and-pages)
