@@ -20,7 +20,7 @@ export default {
 		const path = url.pathname;
 
 		// Parse the model-provider configuration
-		const modelProviderConfig = parseModelProviderConfig(env.MODEL_PROVIDER_CONFIG || '{}');
+		const modelProviderConfig = parseModelProviderConfig(env);
 
 		// Check if we have any models configured
 		if (Object.keys(modelProviderConfig).length === 0) {
@@ -45,7 +45,6 @@ export default {
 				},
 			});
 		}
-    
 
 		try {
 			// Route the request to the appropriate handler

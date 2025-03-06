@@ -7,6 +7,7 @@
     "enabled": true
   },
   "vars": {
+    "PROVIDER_CONFIG": "",
     "MODEL_PROVIDER_CONFIG": "",
     "SERVICE_API_KEY": ""
   }

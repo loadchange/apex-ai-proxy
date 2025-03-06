@@ -6,6 +6,7 @@
  * Environment variables interface for the Worker
  */
 export interface Env {
+	PROVIDER_CONFIG: string;
 	// Configuration for model-provider mapping, stored as a JSON string
 	MODEL_PROVIDER_CONFIG: string;
 	// API key
@@ -22,6 +23,7 @@ export interface ProviderConfig {
 	base_url: string;
 	/** API key for authentication */
 	api_key: string;
+	api_keys?: string;
 	/** The provider's internal model name */
 	model: string;
 }

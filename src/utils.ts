@@ -7,9 +7,23 @@ import { ModelProviderMapping, ErrorResponse, ProviderConfig, ModelConfig } from
 /**
  * Parse the model-provider configuration from environment variable
  */
-export function parseModelProviderConfig(configStr: string): ModelProviderMapping {
+export function parseModelProviderConfig(env: { PROVIDER_CONFIG: string; MODEL_PROVIDER_CONFIG: string }): ModelProviderMapping {
 	try {
-		return JSON.parse(configStr);
+		const providerConf = JSON.parse(env.PROVIDER_CONFIG);
+		const models = JSON.parse(env.MODEL_PROVIDER_CONFIG);
+		Object.keys(models).forEach((key) => {
+			if (Array.isArray(models[key].providers)) {
+				models[key].providers.forEach((provider: any, index: number) => {
+					if (!provider.base_url && !provider.api_key) {
+						models[key].providers[index] = {
+							...models[key].providers[index],
+							...providerConf[provider.provider],
+						};
+					}
+				});
+			}
+		});
+		return models;
 	} catch (error) {
 		console.error('Failed to parse MODEL_PROVIDER_CONFIG:', error);
 		return {};
@@ -46,6 +60,11 @@ export function selectProvider(modelConfig: ModelConfig): { provider: ProviderCo
 	// that takes into account provider health, response times, rate limits, etc.
 	const index = Math.floor(Math.random() * providers.length);
 	const provider = providers[index];
+
+	if (provider && Array.isArray(provider.api_keys)) {
+		const apiKeyIndex = Math.floor(Math.random() * provider.api_keys.length);
+		provider.api_key = provider.api_keys[apiKeyIndex];
+	}
 
 	return { provider };
 }
