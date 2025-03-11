@@ -77,6 +77,23 @@ export async function handleChatCompletionsRequest(
 		input += `?api-version=2024-05-01-preview`;
 		(init.headers as any)['api-key'] = selectedProvider.api_key;
 	}
+	const { cf } = request;
+	const { city, country } = cf || {};
+	console.log({
+		city,
+		country,
+		provider: selectedProvider.provider,
+		model: selectedProvider.model,
+		dateTime: new Date().toLocaleString('en-CA', {
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
+			hour12: false,
+		}),
+	});
 
 	const providerResponse = await fetch(input, init);
 

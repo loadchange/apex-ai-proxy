@@ -3,7 +3,7 @@
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
-		"deploy": "node update-wrangler-config.js && wrangler deploy",
+		"deploy": "node update-wrangler-config.js && wrangler deploy && git checkout wrangler.jsonc",
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
 		"test": "vitest",
