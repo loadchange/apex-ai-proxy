@@ -1,7 +1,7 @@
 # 🚀 Apex AI Proxy: 您的免费个人 AI 网关
 
-[![部署到 Cloudflare Workers](https://img.shields.io/badge/部署到-CF%20Workers-%23F38020?style=for-the-badge&logo=cloudflare)](https://dash.cloudflare.com/?to=/:account/workers-and-pages)
-[![许可证: MIT](https://img.shields.io/badge/许可证-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![部署到 Cloudflare Workers](https://img.shields.io/badge/Deploy%20to-CF%20Workers-%23F38020?style=for-the-badge&logo=cloudflare)](https://dash.cloudflare.com/?to=/:account/workers-and-pages)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 Apex AI Proxy 是一个运行在 Cloudflare Workers 上的免费个人 AI 网关。它将多个 AI 服务提供商聚合在一个统一的 OpenAI 兼容 API 后面，让您突破调用频率限制并享受各家服务商的免费配额。
 
@@ -35,13 +35,29 @@ pnpm install
 
 3. **配置您的提供商** (在 `wrangler-config.js` 中):
 ```javascript
+// 首先，定义您的提供商及其基本URL和API密钥
+const providerConfig = {
+  aliyuncs: {
+    base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    api_keys: ['your-aliyun-key'],
+  },
+  deepinfra: {
+    base_url: 'https://api.deepinfra.com/v1/openai',
+    api_keys: ['your-deepinfra-key'],
+  },
+  azure: {
+    base_url: 'https://:name.azure.com/openai/deployments/:model',
+    api_keys: ['your-azure-key'],
+  },
+  // 根据需要添加更多提供商
+};
+
+// 然后，配置您的模型并为它们分配提供商
 const modelProviderConfig = {
   'gpt-4o-mini': {
     providers: [
       {
         provider: 'azure',
-        base_url: 'https://your-azure-endpoint.com/openai/deployments/gpt-4o-mini',
-        api_key: 'your-azure-key',
         model: 'gpt-4o-mini',
       },
       // 为同一模型添加更多提供商
@@ -51,16 +67,18 @@ const modelProviderConfig = {
     providers: [
       {
         provider: 'aliyuncs',
-        base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-        api_key: 'your-aliyun-key',
         model: 'deepseek-r1',
       },
-      // 为同一提供商配置多个密钥
       {
         provider: 'deepinfra',
-        base_url: 'https://api.deepinfra.com/v1/openai',
-        api_key: 'your-deepinfra-key',
         model: 'deepseek-ai/DeepSeek-R1',
+      },
+      // 您仍然可以为特定模型覆盖提供商设置（如有需要）
+      {
+        provider: 'azure',
+        base_url: 'https://your-custom-endpoint.azure.com/openai/deployments/DeepSeek-R1',
+        api_key: 'your-custom-azure-key',
+        model: 'DeepSeek-R1',
       },
     ],
   },
@@ -120,4 +138,4 @@ response = client.chat.completions.create(
 
 ## 准备好了吗？ 🚀
 
-[![立即部署](https://img.shields.io/badge/立即部署-%E2%86%92-%23FF6A00?style=for-the-badge&logo=cloudflare)](https://dash.cloudflare.com/?to=/:account/workers-and-pages)
+[![立即部署](https://img.shields.io/badge/Deploy%20Now-%E2%86%92-%23FF6A00?style=for-the-badge&logo=cloudflare)](https://dash.cloudflare.com/?to=/:account/workers-and-pages)

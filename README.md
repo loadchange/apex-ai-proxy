@@ -37,13 +37,29 @@ pnpm install
 
 3. **Configure your providers** (in `wrangler-config.js`):
 ```javascript
+// First, define your providers with their base URLs and API keys
+const providerConfig = {
+  aliyuncs: {
+    base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    api_keys: ['your-aliyun-key'],
+  },
+  deepinfra: {
+    base_url: 'https://api.deepinfra.com/v1/openai',
+    api_keys: ['your-deepinfra-key'],
+  },
+  azure: {
+    base_url: 'https://:name.azure.com/openai/deployments/:model',
+    api_keys: ['your-azure-key'],
+  },
+  // Add more providers as needed
+};
+
+// Then, configure your models and assign providers to them
 const modelProviderConfig = {
   'gpt-4o-mini': {
     providers: [
       {
         provider: 'azure',
-        base_url: 'https://your-azure-endpoint.com/openai/deployments/gpt-4o-mini',
-        api_key: 'your-azure-key',
         model: 'gpt-4o-mini',
       },
       // Add more providers for the same model
@@ -53,16 +69,18 @@ const modelProviderConfig = {
     providers: [
       {
         provider: 'aliyuncs',
-        base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-        api_key: 'your-aliyun-key',
         model: 'deepseek-r1',
       },
-      // Multiple keys for the same provider
       {
         provider: 'deepinfra',
-        base_url: 'https://api.deepinfra.com/v1/openai',
-        api_key: 'your-deepinfra-key',
         model: 'deepseek-ai/DeepSeek-R1',
+      },
+      // You can still override provider settings for specific models if needed
+      {
+        provider: 'azure',
+        base_url: 'https://your-custom-endpoint.azure.com/openai/deployments/DeepSeek-R1',
+        api_key: 'your-custom-azure-key',
+        model: 'DeepSeek-R1',
       },
     ],
   },
