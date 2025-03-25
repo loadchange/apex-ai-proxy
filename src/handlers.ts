@@ -51,7 +51,26 @@ export async function handleChatCompletionsRequest(
 	}
 
 	// Check if the requested model exists in our configuration
-	const modelConfig = modelProviderConfig[modelName];
+	let modelConfig = modelProviderConfig[modelName];
+
+	if (!modelConfig && modelName.indexOf('#') > 0) {
+		const [model, providerName] = modelName.split('#');
+		const providerConfig = JSON.parse(env.PROVIDER_CONFIG)[providerName];
+		if (providerConfig && Array.isArray(providerConfig.api_keys)) {
+			modelConfig = {
+				providers: [
+					{
+						provider: providerName,
+						base_url: providerConfig.base_url,
+						api_key: providerConfig.api_keys[0],
+						api_keys: providerConfig.api_keys,
+						model,
+					},
+				],
+			};
+		}
+	}
+
 	if (!modelConfig || !modelConfig.providers || modelConfig.providers.length === 0) {
 		return formatErrorResponse(`Model '${modelName}' not found`, 'model_not_found', 404);
 	}
