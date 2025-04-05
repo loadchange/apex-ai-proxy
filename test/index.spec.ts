@@ -1,6 +1,35 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import worker from '../src/index';
-import { ModelsResponse, ErrorResponse, Model } from '../src/types';
+import { ModelsResponse, ErrorResponse, Model, OpenAIEmbeddingsResponse, ChatCompletionRequest } from '../src/types';
+
+// Define ChatCompletionResponse interface for testing
+interface ChatCompletionResponse {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: Array<{
+    index: number;
+    message: {
+      role: string;
+      content: string | null;
+      tool_calls?: Array<{
+        id: string;
+        type: string;
+        function: {
+          name: string;
+          arguments: string;
+        };
+      }>;
+    };
+    finish_reason: string;
+  }>;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
 
 // Create a mock for fetch
 const mockFetch = vi.fn();
@@ -9,13 +38,33 @@ vi.stubGlobal('fetch', mockFetch);
 
 // Mock environment variables
 const mockEnv = {
+	PROVIDER_CONFIG: JSON.stringify({
+		aliyuncs: {
+			base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+			api_keys: ['test_key_1'],
+		},
+		deepseek: {
+			base_url: 'https://api.deepseek.com',
+			api_keys: ['test_key_2'],
+		},
+		openai: {
+			base_url: 'https://api.openai.com/v1',
+			api_keys: ['test_key_4'],
+		},
+		'text-embedding-ada-002': {
+			providers: [
+				{
+					provider: 'openai',
+					model: 'text-embedding-ada-002',
+				},
+			],
+		},
+	}),
 	MODEL_PROVIDER_CONFIG: JSON.stringify({
 		'DeepSeek-R1': {
 			providers: [
 				{
 					provider: 'aliyuncs',
-					base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-					api_key: 'test_key_1',
 					model: 'deepseek-r1',
 				},
 				{
@@ -409,6 +458,189 @@ describe('AI Service Aggregator Worker', () => {
 			expect(responseBody.error).toBeDefined();
 			expect(responseBody.error.message).toBe('Not found');
 			expect(responseBody.error.type).toBe('not_found');
+		});
+	});
+
+	describe('/v1/embeddings endpoint', () => {
+		// Reset mock fetch before each test
+		beforeEach(() => {
+			mockFetch.mockReset();
+		});
+
+		it('should handle embeddings request successfully', async () => {
+			// Mock fetch implementation for embeddings
+			mockFetch.mockImplementationOnce(async () => {
+				return {
+					ok: true,
+					headers: new Headers({ 'Content-Type': 'application/json' }),
+					json: async () => ({
+						object: 'list',
+						data: [
+							{
+								object: 'embedding',
+								embedding: [0.1, 0.2, 0.3, 0.4, 0.5],
+								index: 0,
+							},
+						],
+						model: 'text-embedding-ada-002',
+						usage: {
+							prompt_tokens: 5,
+							total_tokens: 5,
+						},
+					}),
+				};
+			});
+
+			// Create a request to the /v1/embeddings endpoint
+			const request = new Request('https://example.com/v1/embeddings', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					model: 'text-embedding-ada-002',
+					input: 'Hello world',
+				}),
+			});
+
+			// Call the worker's fetch handler
+			const response = await worker.fetch(request, mockEnv, mockCtx as any);
+
+			// Check the response status
+			expect(response.status).toBe(200);
+
+			// Parse the response body
+			const responseBody = (await response.json()) as OpenAIEmbeddingsResponse;
+
+			// Check the response structure
+			expect(responseBody.object).toBe('list');
+			expect(Array.isArray(responseBody.data)).toBe(true);
+			expect(responseBody.data.length).toBe(1);
+			expect(responseBody.data[0].object).toBe('embedding');
+			expect(Array.isArray(responseBody.data[0].embedding)).toBe(true);
+			expect(responseBody.data[0].embedding.length).toBe(5);
+			expect(responseBody.model).toBe('text-embedding-ada-002');
+			expect(responseBody.usage).toBeDefined();
+			expect(responseBody.usage.prompt_tokens).toBe(5);
+			expect(responseBody.usage.total_tokens).toBe(5);
+
+			// Verify that fetch was called once
+			expect(mockFetch).toHaveBeenCalledTimes(1);
+
+			// Check that the request was properly formatted
+			const fetchArgs = mockFetch.mock.calls[0];
+			expect(fetchArgs[0]).toContain('/embeddings');
+
+			const requestBody = JSON.parse(fetchArgs[1].body);
+			expect(requestBody.model).toBe('text-embedding-ada-002');
+			expect(requestBody.input).toBe('Hello world');
+		});
+
+		it('should return a 400 error for invalid request body', async () => {
+			// Create a request to the /v1/embeddings endpoint with invalid body
+			const request = new Request('https://example.com/v1/embeddings', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: 'invalid json',
+			});
+
+			// Call the worker's fetch handler
+			const response = await worker.fetch(request, mockEnv, mockCtx as any);
+
+			// Check the response status
+			expect(response.status).toBe(400);
+
+			// Parse the response body
+			const responseBody = (await response.json()) as ErrorResponse;
+
+			// Check the error structure
+			expect(responseBody.error).toBeDefined();
+			expect(responseBody.error.message).toBe('Invalid request body');
+			expect(responseBody.error.type).toBe('invalid_request_error');
+		});
+
+		it('should return a 400 error when model parameter is missing', async () => {
+			// Create a request to the /v1/embeddings endpoint with missing model
+			const request = new Request('https://example.com/v1/embeddings', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					input: 'Hello world',
+				}),
+			});
+
+			// Call the worker's fetch handler
+			const response = await worker.fetch(request, mockEnv, mockCtx as any);
+
+			// Check the response status
+			expect(response.status).toBe(400);
+
+			// Parse the response body
+			const responseBody = (await response.json()) as ErrorResponse;
+
+			// Check the error structure
+			expect(responseBody.error).toBeDefined();
+			expect(responseBody.error.message).toBe('Model parameter is required');
+			expect(responseBody.error.type).toBe('invalid_request_error');
+		});
+
+		it('should return a 400 error when input parameter is missing', async () => {
+			// Create a request to the /v1/embeddings endpoint with missing input
+			const request = new Request('https://example.com/v1/embeddings', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					model: 'text-embedding-ada-002',
+				}),
+			});
+
+			// Call the worker's fetch handler
+			const response = await worker.fetch(request, mockEnv, mockCtx as any);
+
+			// Check the response status
+			expect(response.status).toBe(400);
+
+			// Parse the response body
+			const responseBody = (await response.json()) as ErrorResponse;
+
+			// Check the error structure
+			expect(responseBody.error).toBeDefined();
+			expect(responseBody.error.message).toBe('Input parameter is required and must be a string or array of strings');
+			expect(responseBody.error.type).toBe('invalid_request_error');
+		});
+
+		it('should return a 404 error when model is not found', async () => {
+			// Create a request to the /v1/embeddings endpoint with non-existent model
+			const request = new Request('https://example.com/v1/embeddings', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					model: 'non-existent-model',
+					input: 'Hello world',
+				}),
+			});
+
+			// Call the worker's fetch handler
+			const response = await worker.fetch(request, mockEnv, mockCtx as any);
+
+			// Check the response status
+			expect(response.status).toBe(404);
+
+			// Parse the response body
+			const responseBody = (await response.json()) as ErrorResponse;
+
+			// Check the error structure
+			expect(responseBody.error).toBeDefined();
+			expect(responseBody.error.message).toBe("Model 'non-existent-model' not found");
+			expect(responseBody.error.type).toBe('model_not_found');
 		});
 	});
 });

@@ -47,6 +47,33 @@ const modelProviderConfig = {
 			},
 		],
 	},
+	// Embeddings models
+	'text-embedding-ada-002': {
+		providers: [
+			{
+				provider: 'openai',
+				base_url: 'https://api.openai.com/v1',
+				api_key: 'sk-xxx',
+				model: 'text-embedding-ada-002',
+			},
+			{
+				provider: 'azure',
+				base_url: 'https://your-azure-endpoint.openai.azure.com/openai/deployments/text-embedding-ada-002',
+				api_key: 'xxx',
+				model: 'text-embedding-ada-002',
+			},
+		],
+	},
+	'text-embedding-3-small': {
+		providers: [
+			{
+				provider: 'openai',
+				base_url: 'https://api.openai.com/v1',
+				api_key: 'sk-xxx',
+				model: 'text-embedding-3-small',
+			},
+		],
+	},
 };
 
 // API keys

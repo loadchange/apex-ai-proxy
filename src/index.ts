@@ -5,10 +5,9 @@
  * distributing requests across them to increase QPM (Queries Per Minute).
  * It provides a unified API endpoint that's compatible with OpenAI's API.
  */
-
 import { Env } from './types';
 import { parseModelProviderConfig, verifyApiKey, formatErrorResponse } from './utils';
-import { handleModelsRequest, handleChatCompletionsRequest } from './handlers';
+import { handleModelsRequest, handleChatCompletionsRequest, handleEmbeddingsRequest } from './handlers';
 
 /**
  * Main request handler for the Worker
@@ -52,6 +51,8 @@ export default {
 				return await handleModelsRequest(modelProviderConfig);
 			} else if (path === '/v1/chat/completions' && request.method === 'POST') {
 				return await handleChatCompletionsRequest(request, modelProviderConfig, env);
+			} else if (path === '/v1/embeddings' && request.method === 'POST') {
+				return await handleEmbeddingsRequest(request, modelProviderConfig, env);
 			} else {
 				// Return 404 for unknown endpoints
 				return formatErrorResponse('Not found', 'not_found', 404);

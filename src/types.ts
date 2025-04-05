@@ -124,3 +124,36 @@ export interface ErrorResponse {
 		code?: string;
 	};
 }
+
+/**
+	* OpenAI compatible embeddings request
+	*/
+export interface OpenAIEmbeddingsRequest {
+	model: string;
+	input: string | string[];
+	encoding_format?: 'float' | 'base64';
+	dimensions?: number;
+	user?: string;
+}
+
+/**
+	* OpenAI compatible embedding object
+	*/
+export interface OpenAIEmbedding {
+	object: string;
+	embedding: number[];
+	index: number;
+}
+
+/**
+	* OpenAI compatible embeddings response
+	*/
+export interface OpenAIEmbeddingsResponse {
+	object: string;
+	data: OpenAIEmbedding[];
+	model: string;
+	usage: {
+		prompt_tokens: number;
+		total_tokens: number;
+	};
+}
