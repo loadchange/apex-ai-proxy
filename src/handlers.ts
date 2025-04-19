@@ -94,7 +94,7 @@ export async function handleChatCompletionsRequest(
 			'Content-Type': 'application/json',
 			Authorization: `Bearer ${selectedProvider.api_key}`,
 		},
-		body: JSON.stringify(Object.assign({ temperature: 0 }, requestBody, { model: selectedProvider.model })),
+		body: JSON.stringify(Object.assign({}, requestBody, { model: selectedProvider.model })),
 	};
 	if (selectedProvider.provider === 'azure') {
 		input += `/openai/deployments/${selectedProvider.model}/chat/completions?api-version=2025-01-01-preview`;
