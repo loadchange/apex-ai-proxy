@@ -6,6 +6,42 @@ import { ModelProviderMapping, Env } from './types';
 import { formatErrorResponse, selectProvider, recordLog } from './utils';
 
 /**
+ * Save response information to KV storage
+ * @param responseId Response ID
+ * @param provider Provider information
+ * @param env Environment variables
+ * @param log Log function
+ */
+async function saveResponseToKV(responseId: string, provider: any, env: Env, log: any): Promise<void> {
+	// Set TTL to 24 hours (86400 seconds)
+	const ttl = 60 * 60 * 24;
+	// Save response data to KV, using response_id as the key
+	try {
+		await env.RESPONSES_KV.put(
+			responseId,
+			JSON.stringify({
+				provider,
+				timestamp: Date.now(),
+			}),
+			{ expirationTtl: ttl }
+		);
+
+		log.info({
+			action: 'save_response_to_kv',
+			response_id: responseId,
+			success: true,
+		});
+	} catch (error) {
+		log.error({
+			action: 'save_response_to_kv',
+			response_id: responseId,
+			error: error instanceof Error ? error.message : String(error),
+			success: false,
+		});
+	}
+}
+
+/**
  * Handle /v1/responses request - list or create responses
  */
 export async function handleResponsesRequest(request: Request, modelProviderConfig: ModelProviderMapping, env: Env): Promise<Response> {
@@ -83,7 +119,7 @@ export async function handleResponsesRequest(request: Request, modelProviderConf
 		body: JSON.stringify(modifiedRequestBody),
 	};
 
-	log.info({ provider: selectedProvider.provider, model: selectedProvider.model, endpoint: 'responses', input });
+	log.info({ requestBody, provider: selectedProvider.provider, model: selectedProvider.model, endpoint: 'responses', input });
 
 	const providerResponse = await fetch(input, init);
 
@@ -105,44 +141,66 @@ export async function handleResponsesRequest(request: Request, modelProviderConf
 			providerResponse.status
 		);
 	}
+	const contentType = providerResponse.headers.get('Content-Type') ?? '';
+	if (contentType.includes('text/event-stream')) {
+		 // Handle streaming response
+		// No longer clone the response, use the original response body directly
+		const decoder = new TextDecoder();
+		let responseId: string | null = null;
 
-	// Clone the response before reading the body
-	const responseClone = providerResponse.clone();
+		// Create a transform stream to process and analyze SSE data
+		const transformStream = new TransformStream({
+			transform: async (chunk, controller) => {
+				// Send the original chunk
+				controller.enqueue(chunk);
 
-	// Log the response body without disturbing the original stream
-	const responseData: any = await responseClone.json();
-	// .then((responseData) => {
-	log.info({
-		endpoint: '/v1/responses',
-		responseData,
-	});
-	// response_id =>  cloudflare KV
-	if (responseData.id) {
-		// 设置 TTL 为 24 小时 (86400 秒)
-		const ttl = 60 * 60 * 24;
-		// 保存 response 数据到 KV，使用 response_id 作为键
-		try {
-			await env.RESPONSES_KV.put(
-				responseData.id,
-				JSON.stringify({
-					provider: selectedProvider,
-					timestamp: Date.now(),
-				}),
-				{ expirationTtl: ttl }
-			);
+				// Parse data and find response.id
+				if (!responseId) {
+					const text = decoder.decode(chunk, { stream: true });
+					const lines = text.split('\n');
 
-			log.info({
-				action: 'save_response_to_kv',
-				response_id: responseData.id,
-				success: true,
-			});
-		} catch (error) {
-			log.error({
-				action: 'save_response_to_kv',
-				response_id: responseData.id,
-				error: error instanceof Error ? error.message : String(error),
-				success: false,
-			});
+					for (const line of lines) {
+						if (line.startsWith('data:')) {
+							try {
+								const eventData = JSON.parse(line.slice(5));
+								if (
+									(eventData.type === 'response.created' || eventData.type === 'response.in_progress') &&
+									eventData.response?.id
+								) {
+									responseId = eventData.response.id;
+									 // Once ID is found, save to KV immediately
+									await saveResponseToKV(responseId!, selectedProvider, env, log);
+									break;
+								}
+							} catch (e) {
+								 // Parsing error, continue to the next line
+							}
+						}
+					}
+				}
+			}
+		});
+
+		// Set up the streaming response, using the original response body directly
+		return new Response(providerResponse.body?.pipeThrough(transformStream), {
+			headers: providerResponse.headers
+		});
+	}
+
+	if (contentType.includes('application/json')) {
+		// Clone the response before reading the body
+		const responseClone = providerResponse.clone();
+
+		// Log the response body without disturbing the original stream
+		const responseData: any = await responseClone.json();
+		// .then((responseData) => {
+		log.info({
+			endpoint: '/v1/responses',
+			responseData,
+		});
+		// response_id =>  cloudflare KV
+		if (responseData.id) {
+			await saveResponseToKV(responseData.id, selectedProvider, env, log);
 		}
 	}
 
