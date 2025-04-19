@@ -12,6 +12,43 @@ Apex AI Proxy 是一个运行在 Cloudflare Workers 上的免费个人 AI 网关
 - 🔑 **多 API 密钥支持**: 为同一服务提供商注册多个密钥
 - 🤖 **OpenAI 客户端兼容**: 适用于任何使用 OpenAI API 格式的库
 
+---
+
+## 🚨 重要更新：支持 OpenAI 新一代 `/v1/responses` 风格 API
+
+**2025-04 更新**
+
+Apex AI Proxy 现已支持 OpenAI 新一代 `/v1/responses` 风格 API，这一更新对生态兼容性和未来适配至关重要：
+
+- **生态兼容性提升**：可无缝对接 Codex 等最新 OpenAI 工具及所有需要 `/v1/responses` API 的客户端。
+- **面向未来**：确保代理服务持续兼容 OpenAI 标准的演进。
+
+### 本次更新内容
+- **/v1/responses API 支持**：现已支持基于 response 的新一代端点，解锁对新一代 OpenAI 客户端和工具的兼容。
+- **基于 response_id 的接口**：部分接口需基于 `response_id` 操作。为此，配置项中新增了 `kv_namespaces` 字段，用于缓存和管理响应数据。
+- **配置变更**：请在配置文件中添加 `kv_namespaces` 字段（见下方示例），以支持响应的缓存与检索。
+
+#### `wrangler-config.js` 配置示例
+```js
+module.exports = {
+  // ...原有配置...
+  kv_namespaces: [
+    { binding: 'RESPONSE_KV', id: 'your-kv-namespace-id' }
+  ],
+};
+```
+
+> **注意：** 未配置该项时，部分 `/v1/responses` 相关接口将无法正常工作。
+
+### 为什么重要？
+- **解锁 OpenAI 生态新工具**（如 Codex）
+- **对齐最新 API 标准**
+- **支持高级特性**，如 response ID 跟踪
+
+更多细节请参见下方的用法和配置说明。
+
+---
+
 ## 特性 ✨
 
 - 🌐 **多提供商支持**: 将 Azure、DeepSeek、阿里云等聚合在一个 API 后面

@@ -8,6 +8,7 @@
 import { Env } from './types';
 import { parseModelProviderConfig, verifyApiKey, formatErrorResponse } from './utils';
 import { handleModelsRequest, handleChatCompletionsRequest, handleEmbeddingsRequest } from './handlers';
+import { handleResponsesRequest, handleResponseByIdRequest, handleResponseInputItemsRequest } from './responsesHandlers';
 
 /**
  * Main request handler for the Worker
@@ -53,6 +54,16 @@ export default {
 				return await handleChatCompletionsRequest(request, modelProviderConfig, env);
 			} else if (path === '/v1/embeddings' && request.method === 'POST') {
 				return await handleEmbeddingsRequest(request, modelProviderConfig, env);
+			} else if (path === '/v1/responses' && (request.method === 'GET' || request.method === 'POST')) {
+				return await handleResponsesRequest(request, modelProviderConfig, env);
+			} else if (path.startsWith('/v1/responses/') && path.endsWith('/input_items')) {
+				// Extract the response_id from the path
+				const responseId = path.substring('/v1/responses/'.length, path.indexOf('/input_items'));
+				return await handleResponseInputItemsRequest(request, responseId, env);
+			} else if (path.startsWith('/v1/responses/')) {
+				// Extract the response_id from the path
+				const responseId = path.substring('/v1/responses/'.length);
+				return await handleResponseByIdRequest(request, responseId, env);
 			} else {
 				// Return 404 for unknown endpoints
 				return formatErrorResponse('Not found', 'not_found', 404);

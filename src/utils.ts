@@ -84,3 +84,36 @@ export function formatErrorResponse(message: string, type: string = 'internal_er
 		},
 	});
 }
+
+export function recordLog(request: Request) {
+	const { cf } = request;
+	const { city, country } = cf || {};
+	const baseInfo = {
+		city,
+		country,
+		method: 'POST',
+		dateTime: new Date().toLocaleString('en-CA', {
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
+			hour12: false,
+		}),
+	};
+	class Log {
+		private baseInfo: any;
+		constructor(baseInfo: any) {
+			this.baseInfo = baseInfo;
+		}
+
+		info(...data: any[]) {
+			console.log({ ...this.baseInfo, logs: data });
+		}
+		error(...data: any[]) {
+			console.log({ ...this.baseInfo, logs: data });
+		}
+	}
+	return new Log(baseInfo);
+}

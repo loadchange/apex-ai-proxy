@@ -2,7 +2,7 @@
  * Request handlers for the AI service aggregator
  */
 
-import { ModelProviderMapping, ModelsResponse, ChatCompletionRequest, ErrorResponse, Env, OpenAIEmbeddingsRequest, OpenAIEmbeddingsResponse } from './types';
+import { ModelProviderMapping, ModelsResponse, ChatCompletionRequest, ErrorResponse, Env, OpenAIEmbeddingsRequest } from './types';
 import { formatErrorResponse, selectProvider } from './utils';
 
 /**
@@ -83,18 +83,24 @@ export async function handleChatCompletionsRequest(
 
 	const { provider: selectedProvider } = selectedProviderInfo;
 
-	let input = `${selectedProvider.base_url}/chat/completions`;
+	requestBody.messages = (requestBody.messages || []).filter((message) => {
+		return message.content;
+	});
+
+	let input = selectedProvider.base_url;
 	const init: RequestInit<RequestInitCfProperties> = {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
 			Authorization: `Bearer ${selectedProvider.api_key}`,
 		},
-		body: JSON.stringify(Object.assign({}, requestBody, { model: selectedProvider.model })),
+		body: JSON.stringify(Object.assign({ temperature: 0 }, requestBody, { model: selectedProvider.model })),
 	};
 	if (selectedProvider.provider === 'azure') {
-		input += `?api-version=2024-05-01-preview`;
+		input += `/openai/deployments/${selectedProvider.model}/chat/completions?api-version=2025-01-01-preview`;
 		(init.headers as any)['api-key'] = selectedProvider.api_key;
+	} else {
+		input += '/chat/completions';
 	}
 	const { cf } = request;
 	const { city, country } = cf || {};
@@ -119,7 +125,7 @@ export async function handleChatCompletionsRequest(
 	if (!providerResponse.ok) {
 		const error = (await providerResponse.json()) as ErrorResponse;
 		return formatErrorResponse(
-			`[${selectedProvider.provider}] API request failed, message: ${error.error?.message ?? '-'}, meta: ${JSON.stringify(
+			`[${selectedProvider.provider} error] API request failed, message: ${error.error?.message ?? '-'}, meta: ${JSON.stringify(
 				selectedProvider
 			)}`,
 			'internal_server_error',
@@ -135,11 +141,7 @@ export async function handleChatCompletionsRequest(
 /**
  * Handle /v1/embeddings request
  */
-export async function handleEmbeddingsRequest(
-	request: Request,
-	modelProviderConfig: ModelProviderMapping,
-	env: Env
-): Promise<Response> {
+export async function handleEmbeddingsRequest(request: Request, modelProviderConfig: ModelProviderMapping, env: Env): Promise<Response> {
 	// Parse request body
 	let requestBody: OpenAIEmbeddingsRequest;
 	try {
@@ -193,7 +195,7 @@ export async function handleEmbeddingsRequest(
 	const { provider: selectedProvider } = selectedProviderInfo;
 
 	// Construct the embeddings endpoint URL based on the provider
-	let input = `${selectedProvider.base_url}/embeddings`;
+	let input = selectedProvider.base_url;
 	const init: RequestInit<RequestInitCfProperties> = {
 		method: 'POST',
 		headers: {
@@ -205,8 +207,10 @@ export async function handleEmbeddingsRequest(
 
 	// Handle Azure-specific endpoint format
 	if (selectedProvider.provider === 'azure') {
-		input += `?api-version=2024-05-01-preview`;
+		input += `/openai/deployments/${selectedProvider.model}/embeddings?api-version=2023-05-15`;
 		(init.headers as any)['api-key'] = selectedProvider.api_key;
+	} else {
+		input += '/embeddings';
 	}
 
 	// Log request information

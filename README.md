@@ -14,6 +14,43 @@ Apex AI Proxy is a free, personal AI Gateway that runs on Cloudflare Workers. It
 - 🔑 **Multiple API Keys**: Register multiple keys for the same service provider
 - 🤖 **OpenAI Client Compatible**: Works with any library that speaks OpenAI's API format
 
+---
+
+## 🚨 Important Update: Support for OpenAI Next-Gen `/v1/responses` API
+
+**2025-04 Update**
+
+Apex AI Proxy now supports the new OpenAI `/v1/responses`-style API, which is the latest standard for OpenAI-compatible services. This update is crucial for:
+
+- **Ecosystem Compatibility**: Seamless integration with the latest OpenAI tools (e.g., Codex) and clients that require the `/v1/responses` API.
+- **Future-Proofing**: Ensures your proxy remains compatible with evolving OpenAI standards.
+
+### What’s New?
+- **/v1/responses API Support**: You can now use the new response-based endpoints, unlocking compatibility with next-gen OpenAI clients and tools.
+- **Response ID-based Endpoints**: Some endpoints now operate based on `response_id`. To support this, a new `kv_namespaces` configuration is required for caching and managing response data.
+- **Configuration Change**: Please add the `kv_namespaces` field in your configuration (see below) to enable proper response caching and retrieval.
+
+#### Example `wrangler-config.js` Addition
+```js
+module.exports = {
+  // ...existing config...
+  kv_namespaces: [
+    { binding: 'RESPONSE_KV', id: 'your-kv-namespace-id' }
+  ],
+};
+```
+
+> **Note:** Without this configuration, some `/v1/responses` endpoints will not function correctly.
+
+### Why This Matters
+- **Unlocks new OpenAI ecosystem tools** (like Codex)
+- **Aligns with the latest API standards**
+- **Enables advanced features** that require response ID tracking
+
+For more details, see the updated usage and configuration sections below.
+
+---
+
 ## Features ✨
 
 - 🌐 **Multi-Provider Support**: Aggregate Azure, DeepSeek, Aliyun, and more behind one API

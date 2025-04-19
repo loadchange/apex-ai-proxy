@@ -11,6 +11,8 @@ export interface Env {
 	MODEL_PROVIDER_CONFIG: string;
 	// API key
 	SERVICE_API_KEY?: string;
+	// KV namespace for storing response data
+	RESPONSES_KV: KVNamespace;
 }
 
 /**
