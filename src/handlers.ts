@@ -87,6 +87,10 @@ export async function handleChatCompletionsRequest(
 		return message.content;
 	});
 
+	if (selectedProvider.provider === 'mistral' && requestBody?.stream_options?.include_usage) {
+		delete requestBody.stream_options.include_usage;
+	}
+
 	let input = selectedProvider.base_url;
 	const init: RequestInit<RequestInitCfProperties> = {
 		method: 'POST',

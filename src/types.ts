@@ -113,6 +113,7 @@ export interface ChatCompletionRequest {
 	user?: string;
 	tools?: ToolDefinition[];
 	tool_choice?: ToolChoice;
+	stream_options?: any;
 }
 
 /**
