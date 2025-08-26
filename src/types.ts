@@ -160,3 +160,71 @@ export interface OpenAIEmbeddingsResponse {
 		total_tokens: number;
 	};
 }
+
+/**
+ * Anthropic API compatible message content
+ */
+export interface AnthropicContentBlock {
+	type: 'text' | 'image';
+	text?: string;
+	source?: {
+		type: 'base64';
+		media_type: string;
+		data: string;
+	};
+}
+
+/**
+ * Anthropic API compatible message
+ */
+export interface AnthropicMessage {
+	role: 'user' | 'assistant';
+	content: string | AnthropicContentBlock[];
+}
+
+/**
+ * Anthropic API compatible messages request
+ */
+export interface AnthropicMessagesRequest {
+	model: string;
+	messages: AnthropicMessage[];
+	max_tokens: number;
+	temperature?: number;
+	top_p?: number;
+	top_k?: number;
+	stop_sequences?: string[];
+	stream?: boolean;
+	system?: string | AnthropicContentBlock[];
+	metadata?: {
+		user_id?: string;
+	};
+}
+
+/**
+ * Anthropic API compatible tool definition
+ */
+export interface AnthropicTool {
+	name: string;
+	description: string;
+	input_schema: Record<string, any>;
+}
+
+/**
+ * Anthropic API compatible tool use content
+ */
+export interface AnthropicToolUse {
+	type: 'tool_use';
+	id: string;
+	name: string;
+	input: Record<string, any>;
+}
+
+/**
+ * Anthropic API compatible tool result content
+ */
+export interface AnthropicToolResult {
+	type: 'tool_result';
+	tool_use_id: string;
+	content: string | AnthropicContentBlock[];
+	is_error?: boolean;
+}

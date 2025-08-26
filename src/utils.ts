@@ -37,7 +37,7 @@ export function verifyApiKey(request: Request, apiKey?: string): boolean {
 	// If no API key are configured, skip authentication
 	if (!apiKey) return true;
 
-	const authHeader = request.headers.get('Authorization');
+	const authHeader = request.headers.get('Authorization') || request.headers.get('x-api-key');
 	if (!authHeader) return false;
 
 	const match = authHeader.match(/^Bearer\s+(.+)$/i);

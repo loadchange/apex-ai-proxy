@@ -9,6 +9,7 @@ import { Env } from './types';
 import { parseModelProviderConfig, verifyApiKey, formatErrorResponse } from './utils';
 import { handleModelsRequest, handleChatCompletionsRequest, handleEmbeddingsRequest } from './handlers';
 import { handleResponsesRequest, handleResponseByIdRequest, handleResponseInputItemsRequest } from './responsesHandlers';
+import { handleAnthropicMessagesRequest } from './anthropicHandlers';
 
 /**
  * Main request handler for the Worker
@@ -52,6 +53,8 @@ export default {
 				return await handleModelsRequest(modelProviderConfig);
 			} else if (path === '/v1/chat/completions' && request.method === 'POST') {
 				return await handleChatCompletionsRequest(request, modelProviderConfig, env);
+			} else if (path === '/v1/messages' && request.method === 'POST') {
+				return await handleAnthropicMessagesRequest(request, modelProviderConfig, env);
 			} else if (path === '/v1/embeddings' && request.method === 'POST') {
 				return await handleEmbeddingsRequest(request, modelProviderConfig, env);
 			} else if (path === '/v1/responses' && (request.method === 'GET' || request.method === 'POST')) {
