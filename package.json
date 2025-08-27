@@ -4,9 +4,9 @@
   "type": "module",
   "description": "Official documentation website for Apex AI Proxy",
   "scripts": {
-    "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "dev": "vitepress dev src",
+    "build": "vitepress build src && mv ./src/.vitepress/dist ./docs",
+    "preview": "vitepress preview src"
   },
   "keywords": [
     "ai",
