@@ -5,7 +5,7 @@ export default defineConfig({
   description: 'Your Free Personal AI Gateway - Official Documentation',
   
   // 基础配置
-  base: '/',
+  base: './',
   cleanUrls: true,
   lastUpdated: true,
   ignoreDeadLinks: true,
@@ -13,7 +13,7 @@ export default defineConfig({
   // 主题配置
   themeConfig: {
     // 网站logo
-    logo: '/logo.svg',
+    logo: './logo.svg',
     
     // 导航栏
     nav: [
@@ -136,8 +136,8 @@ export default defineConfig({
     ['meta', { name: 'og:type', content: 'website' }],
     ['meta', { name: 'og:locale', content: 'en' }],
     ['meta', { name: 'og:site_name', content: 'Apex AI Proxy' }],
-    ['meta', { name: 'og:image', content: '/og-image.png' }],
-    ['link', { rel: 'icon', href: '/favicon.ico' }]
+    ['meta', { name: 'og:image', content: './og-image.png' }],
+    ['link', { rel: 'icon', href: './favicon.ico' }]
   ],
 
   // Markdown 配置

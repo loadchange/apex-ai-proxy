@@ -5,7 +5,7 @@
   "description": "Official documentation website for Apex AI Proxy",
   "scripts": {
     "dev": "vitepress dev src",
-    "build": "vitepress build src && mv ./src/.vitepress/dist ./docs",
+    "build": "vitepress build src && mv ./src/.vitepress/dist/* ./docs",
     "preview": "vitepress preview src"
   },
   "keywords": [
