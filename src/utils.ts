@@ -36,14 +36,21 @@ export function parseModelProviderConfig(env: { PROVIDER_CONFIG: string; MODEL_P
 export function verifyApiKey(request: Request, apiKey?: string): boolean {
 	// If no API key are configured, skip authentication
 	if (!apiKey) return true;
+	const [_authorization, _xApiKey] = ['Authorization', 'x-api-key'].map((header) => request.headers.get(header));
 
-	const authHeader = request.headers.get('Authorization') || request.headers.get('x-api-key');
+	const authHeader = _authorization || _xApiKey;
 	if (!authHeader) return false;
 
-	const match = authHeader.match(/^Bearer\s+(.+)$/i);
-	if (!match) return false;
+	if (_authorization) {
+		const match = _authorization.match(/^Bearer\s+(.+)$/i);
+		if (!match) return false;
+		return apiKey === match[1];
+	}
+	if (_xApiKey) {
+		return apiKey === _xApiKey;
+	}
 
-	return apiKey === match[1];
+	return false;
 }
 
 /**

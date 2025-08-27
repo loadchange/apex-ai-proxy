@@ -3,8 +3,6 @@
 [![Deploy to Cloudflare Workers](https://img.shields.io/badge/Deploy%20to-CF%20Workers-%23F38020?style=for-the-badge&logo=cloudflare)](https://dash.cloudflare.com/?to=/:account/workers-and-pages)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-[中文文档](README.zh-CN.md)
-
 Apex AI Proxy is a free, personal AI Gateway that runs on Cloudflare Workers. It aggregates multiple AI service providers behind a unified OpenAI-compatible API, allowing you to overcome rate limits and take advantage of free quotas from different providers.
 
 **Why you'll care**:
