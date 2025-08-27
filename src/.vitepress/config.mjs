@@ -4,8 +4,7 @@ export default defineConfig({
   title: 'Apex AI Proxy',
   description: 'Your Free Personal AI Gateway - Official Documentation',
   
-  // 基础配置
-  base: './',
+  base: '/apex-ai-proxy/',
   cleanUrls: true,
   lastUpdated: true,
   ignoreDeadLinks: true,
