@@ -173,6 +173,181 @@ You can configure multiple API keys for the same provider to further increase yo
 
 Found a bug or want to add support for more providers? PRs are welcome!
 
+## Anthropic API Compatibility 🤖
+
+Apex AI Proxy provides comprehensive support for the Anthropic API format, enabling seamless integration with Claude Code and other Anthropic-compatible tools. This allows you to use any OpenAI-compatible provider (like DeepSeek, Azure OpenAI, etc.) with Anthropic ecosystem tools.
+
+### Use with Claude Code
+
+1. **Install Claude Code**:
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+2. **Configure Environment Variables**:
+```bash
+export ANTHROPIC_BASE_URL=https://your-proxy.workers.dev
+export ANTHROPIC_AUTH_TOKEN=your-configured-api-key
+export API_TIMEOUT_MS=600000
+export ANTHROPIC_MODEL=your-model-name
+export ANTHROPIC_SMALL_FAST_MODEL=your-fast-model-name
+```
+
+3. **Enter Your Project Directory and Execute Claude Code**:
+```bash
+cd my-project
+claude
+```
+
+### Use with Anthropic SDK
+
+1. **Install Anthropic SDK**:
+```bash
+pip install anthropic
+```
+
+2. **Configure and Use**:
+```python
+import anthropic
+
+client = anthropic.Anthropic(
+    base_url="https://your-proxy.workers.dev",
+    api_key="your-configured-api-key"
+)
+
+message = client.messages.create(
+    model="your-model-name",
+    max_tokens=1000,
+    system="You are a helpful assistant.",
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Hi, how are you?"
+                }
+            ]
+        }
+    ]
+)
+print(message.content)
+```
+
+### Anthropic API Compatibility Details
+
+Our implementation provides comprehensive support for the Anthropic Messages API with automatic conversion to/from OpenAI format for backend providers.
+
+#### HTTP Headers
+
+| Field | Support Status | Notes |
+|-------|----------------|-------|
+| `anthropic-beta` | Fully Supported | Automatically set for tool use (`tools-2024-04-04`) |
+| `anthropic-version` | Fully Supported | Set to `2023-06-01` |
+| `x-api-key` | Fully Supported | Primary authentication method |
+
+#### Request Fields
+
+| Field | Support Status | Notes |
+|-------|----------------|-------|
+| `model` | Fully Supported | Routes to configured provider models |
+| `max_tokens` | Fully Supported | Required field, passed through to providers |
+| `messages` | Fully Supported | Full message format conversion |
+| `system` | Fully Supported | Supports both string and array formats |
+| `temperature` | Fully Supported | Range [0.0 ~ 2.0] |
+| `top_p` | Fully Supported | Passed through to compatible providers |
+| `top_k` | Ignored | Not supported by most OpenAI-compatible providers |
+| `stop_sequences` | Fully Supported | Converted to OpenAI `stop` parameter |
+| `stream` | Fully Supported | Full streaming support with proper event formatting |
+| `metadata` | Ignored | Not applicable for proxy use case |
+
+#### Tool Support
+
+| Field | Sub-Field | Support Status | Notes |
+|-------|-----------|----------------|-------|
+| `tools` | `name` | Fully Supported | Function name mapping |
+| | `description` | Fully Supported | Function description |
+| | `input_schema` | Fully Supported | JSON schema with automatic cleaning |
+| `tool_choice` | `auto` | Fully Supported | Default tool selection |
+| | `any` | Supported | Mapped to `auto` for OpenAI compatibility |
+| | `tool` | Fully Supported | Specific tool selection |
+| | `none` | Fully Supported | No tool usage |
+
+#### Message Content Types
+
+| Type | Sub-Field | Support Status | Notes |
+|------|-----------|----------------|-------|
+| `text` | `text` | Fully Supported | Plain text content |
+| `image` | | Not Supported | Requires provider-specific implementation |
+| `tool_use` | `id` | Fully Supported | Tool call identification |
+| | `name` | Fully Supported | Function name |
+| | `input` | Fully Supported | Function arguments |
+| `tool_result` | `tool_use_id` | Fully Supported | Tool response linking |
+| | `content` | Fully Supported | Tool execution results |
+| | `is_error` | Supported | Error state indication |
+
+#### Response Format
+
+| Field | Support Status | Notes |
+|-------|----------------|-------|
+| `id` | Fully Supported | Generated message ID |
+| `type` | Fully Supported | Always `message` |
+| `role` | Fully Supported | Always `assistant` |
+| `content` | Fully Supported | Array of content blocks |
+| `stop_reason` | Fully Supported | `end_turn`, `max_tokens`, `tool_use` |
+| `usage` | Fully Supported | Token usage statistics |
+
+#### Streaming Support
+
+| Event Type | Support Status | Notes |
+|------------|----------------|-------|
+| `message_start` | Fully Supported | Message initialization |
+| `content_block_start` | Fully Supported | Content block initialization |
+| `content_block_delta` | Fully Supported | Incremental content updates |
+| `content_block_stop` | Fully Supported | Content block completion |
+| `message_stop` | Fully Supported | Message completion |
+
+#### Advanced Features
+
+- **Automatic Protocol Conversion**: Seamlessly converts between Anthropic and OpenAI formats
+- **Tool Call Buffering**: Handles incremental tool call data in streaming responses
+- **Error Handling**: Comprehensive error mapping and user-friendly error messages
+- **Provider Fallback**: Automatic failover to alternative providers when available
+- **Schema Cleaning**: Removes unsupported JSON schema fields for provider compatibility
+
+#### Limitations
+
+- **Image Content**: Not supported (requires provider-specific multimodal implementations)
+- **Document Processing**: Not supported in current version
+- **Advanced Content Types**: Some specialized content types are not implemented
+- **Cache Control**: Caching directives are ignored (handled at proxy level)
+
+### Configuration Example for Anthropic API
+
+```javascript
+// Configure a model for Anthropic API usage
+const modelProviderConfig = {
+  'claude-3-sonnet': {
+    providers: [
+      {
+        provider: 'deepseek',
+        model: 'deepseek-chat',
+        base_url: 'https://api.deepseek.com/v1',
+        api_key: 'your-deepseek-key',
+      },
+      {
+        provider: 'azure',
+        model: 'gpt-4o',
+        base_url: 'https://your-azure.openai.azure.com',
+        api_key: 'your-azure-key',
+      },
+    ],
+  },
+};
+```
+
+This configuration allows you to use `claude-3-sonnet` as the model name in Anthropic API calls, while the proxy routes requests to your configured OpenAI-compatible providers.
+
 ## Ready to Break Free from Rate Limits? 🚀
 
 [![Deploy Button](https://img.shields.io/badge/Deploy%20Now-%E2%86%92-%23FF6A00?style=for-the-badge&logo=cloudflare)](https://dash.cloudflare.com/?to=/:account/workers-and-pages)

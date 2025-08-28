@@ -1,4 +1,4 @@
-import { ModelProviderMapping, Env, AnthropicMessagesRequest, AnthropicMessage, AnthropicContentBlock, ChatMessage, ChatCompletionRequest } from './types';
+import { ModelProviderMapping, Env, AnthropicMessagesRequest, AnthropicMessage, AnthropicContentBlock, ChatMessage, ChatCompletionRequest, AnthropicTool, ToolDefinition } from './types';
 import { selectProvider } from './utils';
 
 // Extended interfaces for tool support
@@ -27,6 +27,11 @@ interface ExtendedChatMessage extends ChatMessage {
 			arguments: string;
 		};
 	}>;
+}
+
+interface ExtendedAnthropicMessagesRequest extends AnthropicMessagesRequest {
+	tools?: AnthropicTool[];
+	tool_choice?: { type: 'auto' | 'any' | 'tool'; name?: string } | 'auto' | 'any';
 }
 
 /**
@@ -93,6 +98,34 @@ function cleanJsonSchema(schema: any): any {
 	}
 
 	return cleaned;
+}
+
+/**
+ * Select provider with health checking and fallback
+ */
+function selectProviderWithFallback(modelConfig: any): { provider: any; providerIndex: number } | null {
+	const providers = modelConfig.providers;
+	if (!providers || !providers.length) {
+		return null;
+	}
+
+	// Try providers in order, with some randomization for load balancing
+	const startIndex = Math.floor(Math.random() * providers.length);
+
+	for (let i = 0; i < providers.length; i++) {
+		const index = (startIndex + i) % providers.length;
+		const provider = { ...providers[index] };
+
+		// Handle multiple API keys
+		if (provider && Array.isArray(provider.api_keys)) {
+			const apiKeyIndex = Math.floor(Math.random() * provider.api_keys.length);
+			provider.api_key = provider.api_keys[apiKeyIndex];
+		}
+
+		return { provider, providerIndex: index };
+	}
+
+	return null;
 }
 
 /**
@@ -210,7 +243,10 @@ async function convertToProviderRequest(request: Request, requestBody: Anthropic
 	} else if (provider.provider === 'anthropic') {
 		headers.set('x-api-key', provider.api_key);
 		headers.set('anthropic-version', '2023-06-01');
-		headers.set('anthropic-beta', 'messages-2023-12-15');
+		// Add beta headers for tool use support
+		if ((requestBody as ExtendedAnthropicMessagesRequest).tools && (requestBody as ExtendedAnthropicMessagesRequest).tools!.length > 0) {
+			headers.set('anthropic-beta', 'tools-2024-04-04');
+		}
 	} else {
 		// Default to OpenAI-compatible providers
 		headers.set('Authorization', `Bearer ${provider.api_key}`);
@@ -224,9 +260,23 @@ async function convertToProviderRequest(request: Request, requestBody: Anthropic
 }
 
 /**
+ * Convert Anthropic tools to OpenAI tools format
+ */
+function convertAnthropicToolsToOpenAI(anthropicTools: AnthropicTool[]): ToolDefinition[] {
+	return anthropicTools.map(tool => ({
+		type: 'function',
+		function: {
+			name: tool.name,
+			description: tool.description,
+			parameters: cleanJsonSchema(tool.input_schema)
+		}
+	}));
+}
+
+/**
  * Convert Anthropic messages format to OpenAI chat completions format
  */
-function convertAnthropicToOpenAI(anthropicRequest: AnthropicMessagesRequest, model: string): ChatCompletionRequest {
+function convertAnthropicToOpenAI(anthropicRequest: ExtendedAnthropicMessagesRequest, model: string): ChatCompletionRequest {
 	const openAIRequest: ChatCompletionRequest = {
 		model,
 		messages: convertMessages(anthropicRequest.messages),
@@ -253,6 +303,27 @@ function convertAnthropicToOpenAI(anthropicRequest: AnthropicMessagesRequest, mo
 				role: 'system',
 				content: systemContent,
 			});
+		}
+	}
+
+	// Add tools if present
+	if (anthropicRequest.tools && anthropicRequest.tools.length > 0) {
+		openAIRequest.tools = convertAnthropicToolsToOpenAI(anthropicRequest.tools);
+
+		// Convert tool_choice
+		if (anthropicRequest.tool_choice) {
+			if (typeof anthropicRequest.tool_choice === 'string') {
+				if (anthropicRequest.tool_choice === 'auto') {
+					openAIRequest.tool_choice = 'auto';
+				} else if (anthropicRequest.tool_choice === 'any') {
+					openAIRequest.tool_choice = 'auto'; // Use 'auto' instead of 'required'
+				}
+			} else if (anthropicRequest.tool_choice.type === 'tool' && anthropicRequest.tool_choice.name) {
+				openAIRequest.tool_choice = {
+					type: 'function',
+					function: { name: anthropicRequest.tool_choice.name }
+				};
+			}
 		}
 	}
 
@@ -489,6 +560,8 @@ async function convertNormalResponse(openAIResponse: Response): Promise<Response
  * Convert streaming OpenAI response to Anthropic format
  */
 async function convertStreamResponse(openAIResponse: Response): Promise<Response> {
+	const toolCallsBuffer = new Map<number, { id?: string; name?: string; arguments?: string }>();
+
 	return processProviderStream(openAIResponse, (jsonStr, textIndex, toolIndex) => {
 		try {
 			const openAIData: any = JSON.parse(jsonStr);
@@ -502,7 +575,7 @@ async function convertStreamResponse(openAIResponse: Response): Promise<Response
 			let currentTextIndex = textIndex;
 			let currentToolIndex = toolIndex;
 
-			// 只处理delta内容，不创建完整的块事件序列
+			// 处理文本内容
 			if (delta.content) {
 				// 对于第一个内容块，发送content_block_start事件
 				if (currentTextIndex === 0) {
@@ -532,6 +605,75 @@ async function convertStreamResponse(openAIResponse: Response): Promise<Response
 				currentTextIndex = 1; // 标记已经开始内容块
 			}
 
+			// 处理工具调用 - 支持增量式构建
+			if (delta.tool_calls) {
+				for (const toolCall of delta.tool_calls) {
+					const index = toolCall.index || 0;
+
+					// 初始化或更新工具调用缓冲区
+					if (!toolCallsBuffer.has(index)) {
+						toolCallsBuffer.set(index, {});
+					}
+					const bufferedCall = toolCallsBuffer.get(index)!;
+
+					// 更新工具调用信息
+					if (toolCall.id) {
+						bufferedCall.id = toolCall.id;
+					}
+					if (toolCall.function?.name) {
+						bufferedCall.name = toolCall.function.name;
+					}
+					if (toolCall.function?.arguments) {
+						bufferedCall.arguments = (bufferedCall.arguments || '') + toolCall.function.arguments;
+					}
+
+					// 如果工具调用信息完整，生成事件
+					if (bufferedCall.id && bufferedCall.name && bufferedCall.arguments) {
+						try {
+							const args = JSON.parse(bufferedCall.arguments);
+							const blockIndex = currentTextIndex > 0 ? 1 + index : index;
+
+							events.push(
+								`event: content_block_start\ndata: ${JSON.stringify({
+									type: 'content_block_start',
+									index: blockIndex,
+									content_block: {
+										type: 'tool_use',
+										id: bufferedCall.id,
+										name: bufferedCall.name,
+										input: {}
+									}
+								})}\n\n`
+							);
+
+							events.push(
+								`event: content_block_delta\ndata: ${JSON.stringify({
+									type: 'content_block_delta',
+									index: blockIndex,
+									delta: {
+										type: 'input_json_delta',
+										partial_json: JSON.stringify(args)
+									}
+								})}\n\n`
+							);
+
+							events.push(
+								`event: content_block_stop\ndata: ${JSON.stringify({
+									type: 'content_block_stop',
+									index: blockIndex
+								})}\n\n`
+							);
+
+							currentToolIndex = Math.max(currentToolIndex, index + 1);
+							// 清除已处理的工具调用
+							toolCallsBuffer.delete(index);
+						} catch (e) {
+							// JSON 还不完整，继续等待
+						}
+					}
+				}
+			}
+
 			// 处理结束信号
 			if (choice.finish_reason) {
 				// 发送content_block_stop事件
@@ -542,23 +684,6 @@ async function convertStreamResponse(openAIResponse: Response): Promise<Response
 							index: 0
 						})}\n\n`
 					);
-				}
-			}
-
-			if (delta.tool_calls) {
-				for (const toolCall of delta.tool_calls) {
-					if (toolCall.function?.name && toolCall.function?.arguments) {
-						events.push(
-							...processToolUsePart(
-								{
-									name: toolCall.function.name,
-									args: JSON.parse(toolCall.function.arguments)
-								},
-								currentToolIndex
-							)
-						);
-						currentToolIndex++;
-					}
 				}
 			}
 
@@ -819,10 +944,35 @@ export async function handleAnthropicMessagesRequest(
 		logRequest(request, selectedProvider, requestBody);
 
 		// Forward request to provider
-		const providerResponse = await fetch(providerRequest);
+		console.log(`[DEBUG] Making request to provider: ${selectedProvider.provider}, URL: ${providerRequest.url}`);
+
+		let providerResponse: Response;
+		try {
+			providerResponse = await fetch(providerRequest);
+		} catch (fetchError) {
+			console.error(`[ERROR] Fetch failed for provider ${selectedProvider.provider}:`, {
+				error: fetchError,
+				url: providerRequest.url,
+				provider: selectedProvider.provider,
+				model: selectedProvider.model
+			});
+
+			// Return a more detailed error response
+			return formatAnthropicErrorResponse(
+				`Connection failed to provider ${selectedProvider.provider}: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`,
+				'connection_error',
+				503
+			);
+		}
 
 		// Handle provider errors
 		if (!providerResponse.ok) {
+			console.error(`[ERROR] Provider response not OK:`, {
+				status: providerResponse.status,
+				statusText: providerResponse.statusText,
+				provider: selectedProvider.provider,
+				url: providerRequest.url
+			});
 			return handleProviderError(providerResponse, selectedProvider);
 		}
 
