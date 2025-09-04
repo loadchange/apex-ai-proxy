@@ -2,14 +2,27 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "apex-ai-proxy",
   "main": "src/index.ts",
-  "compatibility_date": "2025-02-14",
+  "compatibility_date": "2025-09-01",
   "observability": {
     "enabled": true
   },
   "vars": {
-    "PROVIDER_CONFIG": "",
-    "MODEL_PROVIDER_CONFIG": "",
-    "SERVICE_API_KEY": ""
+    "ACCOUNT_ID": "",
+    "GATEWAY_ID": "",
+    "AZURE_RESOURCE": "",
+    "AZURE_DEPLOYMENT": "",
+    "AZURE_API_VERSION": ""
   },
-	"kv_namespaces": []
+  "secrets_store_secrets": [
+    {
+      "binding": "GatewayToken",
+      "secret_name": "",
+      "store_id": ""
+    },
+    {
+      "binding": "ANTHROPIC_API_KEY",
+      "secret_name": "",
+      "store_id": ""
+    }
+  ]
 }

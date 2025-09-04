@@ -2,125 +2,157 @@
  * Utility functions for the AI service aggregator
  */
 
-import { ModelProviderMapping, ErrorResponse, ProviderConfig, ModelConfig } from './types';
+import type { ErrorResponse, AzureConfig } from './types';
 
-/**
- * Parse the model-provider configuration from environment variable
- */
-export function parseModelProviderConfig(env: { PROVIDER_CONFIG: string; MODEL_PROVIDER_CONFIG: string }): ModelProviderMapping {
-	try {
-		const providerConf = JSON.parse(env.PROVIDER_CONFIG);
-		const models = JSON.parse(env.MODEL_PROVIDER_CONFIG);
-		Object.keys(models).forEach((key) => {
-			if (Array.isArray(models[key].providers)) {
-				models[key].providers.forEach((provider: any, index: number) => {
-					if (!provider.base_url && !provider.api_key) {
-						models[key].providers[index] = {
-							...models[key].providers[index],
-							...providerConf[provider.provider],
-						};
-					}
-				});
-			}
-		});
-		return models;
-	} catch (error) {
-		console.error('Failed to parse MODEL_PROVIDER_CONFIG:', error);
-		return {};
-	}
+export function getEndpoint(env: Env) {
+  return `https://gateway.ai.cloudflare.com/v1/${env.ACCOUNT_ID}/${env.GATEWAY_ID}`;
 }
 
 /**
  * Verify API key from the Authorization header
  */
 export function verifyApiKey(request: Request, apiKey?: string): boolean {
-	// If no API key are configured, skip authentication
-	if (!apiKey) return true;
-	const [_authorization, _xApiKey] = ['Authorization', 'x-api-key'].map((header) => request.headers.get(header));
+  // If no API key are configured, skip authentication
+  if (!apiKey) return true;
+  const [_authorization, _xApiKey] = ['Authorization', 'x-api-key'].map((header) => request.headers.get(header));
 
-	const authHeader = _authorization || _xApiKey;
-	if (!authHeader) return false;
+  const authHeader = _authorization || _xApiKey;
+  if (!authHeader) return false;
 
-	if (_authorization) {
-		const match = _authorization.match(/^Bearer\s+(.+)$/i);
-		if (!match) return false;
-		return apiKey === match[1];
-	}
-	if (_xApiKey) {
-		return apiKey === _xApiKey;
-	}
+  if (_authorization) {
+    const match = _authorization.match(/^Bearer\s+(.+)$/i);
+    if (!match) return false;
+    return apiKey === match[1];
+  }
+  if (_xApiKey) {
+    return apiKey === _xApiKey;
+  }
 
-	return false;
+  return false;
 }
 
-/**
- * Select a provider from the available providers using random selection
- */
-export function selectProvider(modelConfig: ModelConfig): { provider: ProviderConfig } | null {
-	const providers = modelConfig.providers;
-	if (!providers || !providers.length) {
-		return null;
-	}
+const OPENAI_ENDPOINT = ['cerebras', 'deepseek', 'groq', 'openai', 'perplexity-ai'];
+const OPENAI_V1_ENDPOINT = ['grok', 'mistral', 'openrouter'];
+const SUPPORTED_ENDPOINTS = ['azure-openai', 'anthropic', ...OPENAI_ENDPOINT, ...OPENAI_V1_ENDPOINT];
 
-	// Random selection to better distribute load across providers
-	// In a production environment, you might want to use a more sophisticated strategy
-	// that takes into account provider health, response times, rate limits, etc.
-	const index = Math.floor(Math.random() * providers.length);
-	const provider = providers[index];
+export function urlBuilder(endpoint: string, provider: string, azureConfig?: AzureConfig) {
+  const urlFragment = [endpoint];
+  if (!SUPPORTED_ENDPOINTS.includes(provider)) {
+    throw new Error(`Unsupported provider: ${provider}`);
+  }
+  urlFragment.push(provider);
 
-	if (provider && Array.isArray(provider.api_keys)) {
-		const apiKeyIndex = Math.floor(Math.random() * provider.api_keys.length);
-		provider.api_key = provider.api_keys[apiKeyIndex];
-	}
+  if (provider === 'anthropic') {
+    urlFragment.push('v1/messages');
+    return urlFragment.join('/');
+  }
 
-	return { provider };
+  if (provider === 'azure-openai') {
+    if (!azureConfig || !azureConfig.resource || !azureConfig.deployment) {
+      throw new Error(`Missing Azure config for provider: ${provider}`);
+    }
+    urlFragment.push(azureConfig.resource);
+    urlFragment.push(azureConfig.deployment);
+  }
+
+  if (OPENAI_V1_ENDPOINT.includes(provider)) {
+    urlFragment.push('v1');
+  }
+
+  urlFragment.push(`chat/completions${provider === 'azure-openai' ? '?api-version=${azureConfig.apiVersion}' : ''}`);
+  return urlFragment.join('/');
 }
 
 /**
  * Format error response in OpenAI compatible format
  */
 export function formatErrorResponse(message: string, type: string = 'internal_error', status: number = 500): Response {
-	const errorResponse: ErrorResponse = {
-		error: { message, type },
-	};
+  const errorResponse: ErrorResponse = {
+    error: { message, type },
+  };
 
-	return new Response(JSON.stringify(errorResponse), {
-		status,
-		headers: {
-			'Content-Type': 'application/json',
-		},
-	});
+  return new Response(JSON.stringify(errorResponse), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
 }
 
-export function recordLog(request: Request) {
-	const { cf } = request;
-	const { city, country } = cf || {};
-	const baseInfo = {
-		city,
-		country,
-		method: 'POST',
-		dateTime: new Date().toLocaleString('en-CA', {
-			year: 'numeric',
-			month: '2-digit',
-			day: '2-digit',
-			hour: '2-digit',
-			minute: '2-digit',
-			second: '2-digit',
-			hour12: false,
-		}),
-	};
-	class Log {
-		private baseInfo: any;
-		constructor(baseInfo: any) {
-			this.baseInfo = baseInfo;
-		}
+/**
+ * Create a logger instance with Cloudflare-optimized formatting
+ */
+export function createLogger(request: Request): Logger {
+  const { cf } = request;
+  const { city, country, timezone } = cf || {};
 
-		info(...data: any[]) {
-			console.log({ ...this.baseInfo, logs: data });
-		}
-		error(...data: any[]) {
-			console.log({ ...this.baseInfo, logs: data });
-		}
-	}
-	return new Log(baseInfo);
+  const baseInfo = {
+    location: city && country ? `${city}, ${country}` : 'Unknown',
+    timezone: timezone || 'UTC',
+    method: request.method,
+    url: new URL(request.url).pathname,
+    userAgent: request.headers.get('User-Agent')?.slice(0, 100) || 'Unknown',
+    timestamp: new Date()
+      .toLocaleString('zh-CN', {
+        timeZone: 'Asia/Singapore',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      })
+      .replace(/\//g, '-'),
+  };
+
+  class CFLogger {
+    private readonly context: typeof baseInfo;
+
+    constructor(context: typeof baseInfo) {
+      this.context = context;
+    }
+
+    info(message: string, data?: Record<string, any>) {
+      console.log(
+        JSON.stringify({
+          level: 'INFO',
+          ...this.context,
+          message,
+          ...data,
+        }),
+      );
+    }
+
+    error(message: string, error?: Error | Record<string, any>) {
+      console.error(
+        JSON.stringify({
+          level: 'ERROR',
+          ...this.context,
+          message,
+          error:
+            error instanceof Error
+              ? {
+                  name: error.name,
+                  message: error.message,
+                  stack: error.stack,
+                }
+              : error,
+        }),
+      );
+    }
+
+    warn(message: string, data?: Record<string, any>) {
+      console.warn(
+        JSON.stringify({
+          level: 'WARN',
+          ...this.context,
+          message,
+          ...data,
+        }),
+      );
+    }
+  }
+
+  return new CFLogger(baseInfo);
 }
