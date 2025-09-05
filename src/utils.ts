@@ -33,8 +33,18 @@ export function verifyApiKey(request: Request, apiKey?: string): boolean {
 
 const OPENAI_ENDPOINT = ['cerebras', 'deepseek', 'groq', 'openai', 'perplexity-ai'];
 const OPENAI_V1_ENDPOINT = ['grok', 'mistral', 'openrouter'];
-const SUPPORTED_ENDPOINTS = ['azure-openai', 'anthropic', 'google-ai-studio', ...OPENAI_ENDPOINT, ...OPENAI_V1_ENDPOINT];
-const SUPPORTED_UNIFIED_API_ENDPOINTS = ['anthropic', 'openai', 'groq', 'mistral', 'google-ai-studio', 'grok', 'deepseek', 'cerebras'];
+const SUPPORTED_ENDPOINTS = ['azure-openai', 'anthropic', 'google-ai-studio', 'cohere', ...OPENAI_ENDPOINT, ...OPENAI_V1_ENDPOINT];
+const SUPPORTED_UNIFIED_API_ENDPOINTS = [
+  'anthropic',
+  'openai',
+  'groq',
+  'mistral',
+  'cohere',
+  'google-ai-studio',
+  'grok',
+  'deepseek',
+  'cerebras',
+];
 
 export function isSupportedUnifiedApiEndpoint(provider: string): boolean {
   return SUPPORTED_UNIFIED_API_ENDPOINTS.includes(provider);
