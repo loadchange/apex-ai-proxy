@@ -3,6 +3,7 @@
   "name": "apex-ai-proxy",
   "main": "src/index.ts",
   "compatibility_date": "2025-09-01",
+  "preview_urls": false,
   "observability": {
     "enabled": true
   },
@@ -10,17 +11,11 @@
     "ACCOUNT_ID": "",
     "GATEWAY_ID": "",
     "AZURE_RESOURCE": "",
-    "AZURE_DEPLOYMENT": "",
     "AZURE_API_VERSION": ""
   },
   "secrets_store_secrets": [
     {
-      "binding": "GatewayToken",
-      "secret_name": "",
-      "store_id": ""
-    },
-    {
-      "binding": "ANTHROPIC_API_KEY",
+      "binding": "",
       "secret_name": "",
       "store_id": ""
     }

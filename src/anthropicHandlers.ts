@@ -10,7 +10,7 @@ import type {
   ExtendedAnthropicMessagesRequest,
 } from './types';
 
-import { urlBuilder } from './utils';
+import { urlBuilder, isSupportedUnifiedApiEndpoint } from './utils';
 
 /**
  * Format error response in Anthropic compatible format
@@ -111,26 +111,23 @@ async function convertToProviderRequest(
   request: Request,
   requestBody: AnthropicMessagesRequest,
   api_key: string,
-  anthropicApiKey: string,
   endpoint: string,
   provider: string,
   model: string,
   azureConfig?: AzureConfig,
 ): Promise<Request> {
-  const convertedRequest = provider === 'anthropic' ? Object.assign(requestBody, { model }) : convertAnthropicToOpenAI(requestBody, model);
-  const finalUrl: string = urlBuilder(endpoint, provider, azureConfig);
+  const convertedRequest = convertAnthropicToOpenAI(
+    requestBody,
+    isSupportedUnifiedApiEndpoint(provider) ? [provider, model].join('/') : model,
+  );
+  const finalUrl: string = urlBuilder(endpoint, provider, { ...azureConfig, deployment: model });
 
   // Set up headers
   const headers = new Headers(request.headers);
   headers.set('Content-Type', 'application/json');
   headers.set('cf-aig-authorization', `Bearer ${api_key}`);
-
-  // Handle provider-specific authentication
-  if (provider === 'anthropic') {
-    headers.set('anthropic-version', '2023-06-01');
-    headers.set('x-api-key', anthropicApiKey);
-    headers.delete('Authorization');
-  }
+  headers.delete('x-api-key');
+  headers.delete('Authorization');
 
   return new Request(finalUrl, {
     method: 'POST',
@@ -326,28 +323,7 @@ async function handleProviderError(providerResponse: Response, provider: string)
 /**
  * Convert response to Anthropic format
  */
-async function convertToAnthropicResponse(
-  providerResponse: Response,
-  requestBody: AnthropicMessagesRequest,
-  provider: string,
-): Promise<Response> {
-  if (provider === 'anthropic') {
-    // Direct Anthropic response - pass through
-    return new Response(providerResponse.body, {
-      status: providerResponse.status,
-      headers: {
-        'Content-Type': providerResponse.headers.get('Content-Type') || 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        ...(requestBody.stream
-          ? {
-              'Cache-Control': 'no-cache',
-              Connection: 'keep-alive',
-            }
-          : {}),
-      },
-    });
-  }
-
+async function convertToAnthropicResponse(providerResponse: Response): Promise<Response> {
   // Convert OpenAI response to Anthropic format
   const contentType = providerResponse.headers.get('content-type') || '';
   const isStream = contentType.includes('text/event-stream');
@@ -736,7 +712,6 @@ export async function handleAnthropicMessagesRequest(
   logger: Logger,
   endpoint: string,
   api_key: string,
-  anthropicApiKey: string,
   azureConfig?: AzureConfig,
 ): Promise<Response> {
   // Validate request
@@ -763,16 +738,7 @@ export async function handleAnthropicMessagesRequest(
   });
 
   // Convert request to provider format
-  const providerRequest = await convertToProviderRequest(
-    request,
-    requestBody,
-    api_key,
-    anthropicApiKey,
-    endpoint,
-    provider,
-    model,
-    azureConfig,
-  );
+  const providerRequest = await convertToProviderRequest(request, requestBody, api_key, endpoint, provider, model, azureConfig);
 
   // Forward request to provider
   logger.info(`[DEBUG] Making request to provider: ${provider}, model: ${model}`, { providerRequest });
@@ -808,5 +774,5 @@ export async function handleAnthropicMessagesRequest(
   }
 
   // Convert response to Anthropic format
-  return convertToAnthropicResponse(providerResponse, requestBody, provider);
+  return convertToAnthropicResponse(providerResponse);
 }

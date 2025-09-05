@@ -1,353 +1,459 @@
-# 🚀 Apex AI Proxy: Your Free Personal AI Gateway
+# Apex AI Proxy
 
-[![Deploy to Cloudflare Workers](https://img.shields.io/badge/Deploy%20to-CF%20Workers-%23F38020?style=for-the-badge&logo=cloudflare)](https://dash.cloudflare.com/?to=/:account/workers-and-pages)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+A powerful Cloudflare Workers-based AI service aggregator that provides unified API endpoints compatible with both OpenAI and Anthropic formats. Built on top of Cloudflare AI Gateway for enhanced reliability, monitoring, and cost optimization.
 
-Apex AI Proxy is a free, personal AI Gateway that runs on Cloudflare Workers. It aggregates multiple AI service providers behind a unified OpenAI-compatible API, allowing you to overcome rate limits and take advantage of free quotas from different providers.
+## Features
 
-**Why you'll care**:
-- 🆓 **Completely Free**: Runs entirely on Cloudflare Workers' free plan
-- 🔄 **Load Balancing**: Distributes requests across multiple providers to overcome rate limits
-- 💰 **Maximize Free Quotas**: Take advantage of free tiers from different AI providers
-- 🔑 **Multiple API Keys**: Register multiple keys for the same service provider
-- 🤖 **OpenAI Client Compatible**: Works with any library that speaks OpenAI's API format
+- **Unified API Interface**: Single endpoint supporting both OpenAI and Anthropic API formats
+- **Multi-Provider Support**: Seamlessly integrate with multiple AI providers through Cloudflare AI Gateway
+- **Streaming Support**: Real-time streaming responses for both API formats
+- **CORS Enabled**: Ready for web applications with proper CORS handling
+- **Type Safety**: Full TypeScript implementation with comprehensive type definitions
+- **Tool/Function Calling**: Support for function calling in both OpenAI and Anthropic formats
+- **Azure OpenAI Integration**: Native support for Azure OpenAI deployments
+- **Request Validation**: Robust input validation and error handling
+- **Image Support**: Full support for vision models and image analysis
+- **BYOK Integration**: Secure API key storage using Cloudflare's BYOK feature
 
----
+## Supported Providers
 
-## 🚨 Important Update: Support for OpenAI Next-Gen `/v1/responses` API
+Via Cloudflare AI Gateway:
+- OpenAI (GPT-4, GPT-3.5, GPT-4V)
+- Anthropic (Claude 3.5, Claude 3 Haiku/Sonnet/Opus)
+- Google AI Studio (Gemini Pro, Gemini Flash)
+- Groq (Mixtral, Llama models)
+- Mistral (Mistral Large, Codestral)
+- Grok (xAI models)
+- DeepSeek (DeepSeek Coder, DeepSeek Chat)
+- Cerebras (Llama models)
+- Perplexity AI (Sonar models)
+- Azure OpenAI
+- Cohere
+- Workers AI
 
-**2025-04 Update**
+## Quick Deploy
 
-Apex AI Proxy now supports the new OpenAI `/v1/responses`-style API, which is the latest standard for OpenAI-compatible services. This update is crucial for:
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/loadchange/apex-ai-proxy)
 
-- **Ecosystem Compatibility**: Seamless integration with the latest OpenAI tools (e.g., Codex) and clients that require the `/v1/responses` API.
-- **Future-Proofing**: Ensures your proxy remains compatible with evolving OpenAI standards.
+## Prerequisites
 
-### What’s New?
-- **/v1/responses API Support**: You can now use the new response-based endpoints, unlocking compatibility with next-gen OpenAI clients and tools.
-- **Response ID-based Endpoints**: Some endpoints now operate based on `response_id`. To support this, a new `kv_namespaces` configuration is required for caching and managing response data.
-- **Configuration Change**: Please add the `kv_namespaces` field in your configuration (see below) to enable proper response caching and retrieval.
+1. **Cloudflare Account**: Sign up at [Cloudflare](https://cloudflare.com)
+2. **AI Gateway Setup**: Follow the [AI Gateway Getting Started Guide](https://developers.cloudflare.com/ai-gateway/get-started/)
+3. **Provider API Keys**: Obtain API keys from your chosen AI providers
+4. **Node.js**: Version 16 or higher
+5. **pnpm**: Package manager (or npm/yarn)
 
-#### Example `wrangler-config.js` Addition
-```js
-module.exports = {
-  // ...existing config...
-  kv_namespaces: [
-    { binding: 'RESPONSE_KV', id: 'your-kv-namespace-id' }
-  ],
-};
-```
+## Setup Instructions
 
-> **Note:** Without this configuration, some `/v1/responses` endpoints will not function correctly.
+### 1. Clone and Install
 
-### Why This Matters
-- **Unlocks new OpenAI ecosystem tools** (like Codex)
-- **Aligns with the latest API standards**
-- **Enables advanced features** that require response ID tracking
-
-For more details, see the updated usage and configuration sections below.
-
----
-
-## Features ✨
-
-- 🌐 **Multi-Provider Support**: Aggregate Azure, DeepSeek, Aliyun, and more behind one API
-- 🔀 **Smart Request Distribution**: Automatically routes requests to available providers
-- 🔑 **Multiple API Key Management**: Register multiple keys for the same provider to further increase limits
-- 🔄 **Protocol Translation**: Handles different provider authentication methods and API formats
-- 🛡️ **Robust Error Handling**: Gracefully handles provider errors and failover
-
-## Get Started in 60 Seconds ⏱️
-
-1. **Clone the repository**:
 ```bash
 git clone https://github.com/loadchange/apex-ai-proxy.git
 cd apex-ai-proxy
-```
-
-2. **Install dependencies**:
-```bash
 pnpm install
 ```
 
-3. **Configure your providers** (in `wrangler-config.js`):
-```javascript
-// First, define your providers with their base URLs and API keys
-const providerConfig = {
-  aliyuncs: {
-    base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    api_keys: ['your-aliyun-key'],
-  },
-  deepinfra: {
-    base_url: 'https://api.deepinfra.com/v1/openai',
-    api_keys: ['your-deepinfra-key'],
-  },
-  azure: {
-    base_url: 'https://:name.azure.com/openai/deployments/:model',
-    api_keys: ['your-azure-key'],
-  },
-  // Add more providers as needed
-};
+### 2. Configure Cloudflare AI Gateway
 
-// Then, configure your models and assign providers to them
-const modelProviderConfig = {
-  'gpt-4o-mini': {
-    providers: [
-      {
-        provider: 'azure',
-        model: 'gpt-4o-mini',
-      },
-      // Add more providers for the same model
-    ],
-  },
-  'DeepSeek-R1': {
-    providers: [
-      {
-        provider: 'aliyuncs',
-        model: 'deepseek-r1',
-      },
-      {
-        provider: 'deepinfra',
-        model: 'deepseek-ai/DeepSeek-R1',
-      },
-      // You can still override provider settings for specific models if needed
-      {
-        provider: 'azure',
-        base_url: 'https://your-custom-endpoint.azure.com/openai/deployments/DeepSeek-R1',
-        api_key: 'your-custom-azure-key',
-        model: 'DeepSeek-R1',
-      },
-    ],
-  },
-};
+#### Step 1: Create AI Gateway
+1. Navigate to your [Cloudflare Dashboard](https://dash.cloudflare.com)
+2. Go to **AI** → **AI Gateway**
+3. Select **Create Gateway**
+4. Enter your **Gateway name** (e.g., `apex-ai-proxy`)
+5. Select **Create**
+6. Note your **Account ID** and **Gateway ID** from the gateway settings
+
+#### Step 2: Enable Authentication (Recommended)
+1. In your AI Gateway dashboard, go to **Settings**
+2. Enable **Authentication** to secure your gateway
+3. Generate a **Gateway Token** for API access
+4. Store this token securely - you'll need it for deployment
+
+### 3. Configure Provider API Keys
+
+You have three options for provider authentication:
+
+#### Option A: BYOK (Bring Your Own Keys) - Recommended
+Store your API keys securely in Cloudflare:
+
+1. In your AI Gateway dashboard, go to **Provider Keys** section
+2. Click **Add API Key**
+3. Select your AI provider from the dropdown
+4. Enter your API key and optionally provide a description
+5. Click **Save**
+6. Repeat for all providers you want to use
+
+**Benefits of BYOK**:
+- Secure storage with Cloudflare Secrets Store
+- Easy key rotation without code changes
+- Enhanced security - keys never exposed in requests
+- Rate limiting and budget controls per provider
+
+#### Option B: Request Headers
+Include provider API keys in request headers (traditional approach):
+```bash
+curl -H "Authorization: Bearer YOUR_PROVIDER_API_KEY" \
+     -H "cf-aig-authorization: Bearer YOUR_GATEWAY_TOKEN"
 ```
 
-4. **Deploy to Cloudflare Workers**:
+#### Option C: Unified Billing
+Use Cloudflare's billing system (where available) without managing individual provider keys.
+
+### 4. Update Configuration
+
+Edit [`wrangler.jsonc`](wrangler.jsonc):
+
+```jsonc
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "apex-ai-proxy",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-09-01",
+  "vars": {
+    "ACCOUNT_ID": "your-cloudflare-account-id",
+    "GATEWAY_ID": "your-gateway-id",
+    "AZURE_RESOURCE": "your-azure-resource-name", // Optional: for Azure OpenAI
+    "AZURE_API_VERSION": "2024-02-01"              // Optional: for Azure OpenAI
+  }
+}
+```
+
+**How to find your IDs**:
+- **Account ID**: Available in the right sidebar of any Cloudflare dashboard page
+- **Gateway ID**: Found in your AI Gateway settings page URL or dashboard
+
+### 5. Set Up Authentication
+
+Create a secret for your gateway token:
+
 ```bash
+# Set your gateway authentication token
+wrangler secret put GatewayToken
+# Enter your Gateway Token when prompted (from step 2)
+```
+
+### 6. Deploy
+
+```bash
+# Deploy to Cloudflare Workers
 pnpm run deploy
 ```
 
-## Why This Solves Your Problems
+After deployment, your worker will be available at:
+`https://your-worker-name.your-subdomain.workers.dev`
 
-- **Rate Limit Issues**: By distributing requests across multiple providers, you can overcome rate limits imposed by individual services
-- **Cost Optimization**: Take advantage of free tiers from different providers
-- **API Consistency**: Use a single, consistent API format (OpenAI-compatible) regardless of the underlying provider
-- **Simplified Integration**: No need to modify your existing code that uses OpenAI clients
+## API Usage
 
-## Usage Example
+### Model Specification Format
+
+**Important**: This proxy uses the format `model#provider` (note the `#` separator):
+
+- **OpenAI**: `gpt-4#openai`, `gpt-3.5-turbo#openai`
+- **Anthropic**: `claude-3-5-haiku-20241022#anthropic`, `claude-3-5-sonnet-20241022#anthropic`
+- **Google**: `gemini-2.0-flash#google-ai-studio`
+- **Groq**: `mixtral-8x7b-32768#groq`
+- **Mistral**: `mistral-large-latest#mistral`
+- **Azure OpenAI**: `gpt-4#azure-openai`
+
+### OpenAI Compatible Endpoint
+
+```bash
+curl -X POST "https://your-worker.your-subdomain.workers.dev/v1/chat/completions" \
+  -H "Authorization: Bearer your-gateway-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "claude-3-5-haiku-20241022#anthropic",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hello, world!"
+      }
+    ],
+    "stream": true
+  }'
+```
+
+### Anthropic Compatible Endpoint
+
+```bash
+curl -X POST "https://your-worker.your-subdomain.workers.dev/v1/messages" \
+  -H "Authorization: Bearer your-gateway-token" \
+  -H "Content-Type: application/json" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{
+    "model": "claude-3-5-sonnet-20241022#anthropic",
+    "max_tokens": 1000,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hello, world!"
+      }
+    ],
+    "stream": true
+  }'
+```
+
+### Image Analysis Support
+
+Both endpoints support vision models for image analysis:
+
+```bash
+curl -X POST "https://your-worker.your-subdomain.workers.dev/v1/chat/completions" \
+  -H "Authorization: Bearer your-gateway-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4-vision-preview#openai",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "What do you see in this image?"
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ..."
+            }
+          }
+        ]
+      }
+    ]
+  }'
+```
+
+## Client Integration Examples
+
+### OpenAI Python Client
 
 ```python
-# Works with ANY OpenAI client!
 from openai import OpenAI
 
 client = OpenAI(
-    base_url="https://your-proxy.workers.dev/v1",
-    api_key="your-configured-api-key"
+    api_key="your-gateway-token",
+    base_url="https://your-worker.your-subdomain.workers.dev/v1"
 )
 
-# Use any model you've configured in your proxy
+# Use Claude via OpenAI client
 response = client.chat.completions.create(
-    model="DeepSeek-R1",  # This will be routed to one of your configured providers
-    messages=[{"role": "user", "content": "Why is this proxy awesome?"}]
+    model="claude-3-5-haiku-20241022#anthropic",
+    messages=[
+        {"role": "user", "content": "Hello!"}
+    ]
 )
 ```
 
-## Multiple API Keys Configuration
+### Anthropic Python Client
 
-You can configure multiple API keys for the same provider to further increase your rate limits:
+```python
+from anthropic import Anthropic
 
-```javascript
+client = Anthropic(
+    api_key="your-gateway-token",
+    base_url="https://your-worker.your-subdomain.workers.dev"
+)
+
+response = client.messages.create(
+    model="claude-3-5-sonnet-20241022#anthropic",
+    max_tokens=1000,
+    messages=[
+        {"role": "user", "content": "Hello!"}
+    ]
+)
+```
+
+### Cursor/VS Code Integration
+
+Configure your IDE to use the adapter:
+
+**Cursor Settings** (Settings → Cursor Settings):
+```json
 {
-  provider: 'aliyuncs',
-  base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  api_keys: [
-    'your-first-aliyun-key',
-    'your-second-aliyun-key',
-    'your-third-aliyun-key'
-  ],
-  model: 'deepseek-r1',
+  "cursor.general.apiKey": "your-gateway-token",
+  "cursor.general.baseURL": "https://your-worker.your-subdomain.workers.dev/v1",
+  "cursor.general.model": "claude-3-5-haiku-20241022#anthropic"
 }
+```
+
+**VS Code with Continue Extension**:
+```json
+{
+  "models": [
+    {
+      "title": "Claude 3.5 Haiku",
+      "provider": "openai",
+      "model": "claude-3-5-haiku-20241022#anthropic",
+      "apiKey": "your-gateway-token",
+      "apiBase": "https://your-worker.your-subdomain.workers.dev/v1"
+    }
+  ]
+}
+```
+
+## Environment Variables
+
+| Variable | Description | Required | Example |
+|----------|-------------|----------|---------|
+| `ACCOUNT_ID` | Your Cloudflare Account ID | ✅ | `1234567890abcdef1234567890abcdef` |
+| `GATEWAY_ID` | Your AI Gateway ID | ✅ | `my-gateway` |
+| `AZURE_RESOURCE` | Azure OpenAI resource name | ❌ | `my-azure-openai` |
+| `AZURE_API_VERSION` | Azure OpenAI API version | ❌ | `2024-02-01` |
+
+## Secrets
+
+| Secret | Description | Required | How to Set |
+|--------|-------------|----------|------------|
+| `GatewayToken` | Authentication token for API access | ✅ | `wrangler secret put GatewayToken` |
+
+## Development
+
+### Local Development
+
+```bash
+# Start local development server
+pnpm run dev
+
+# Your proxy will be available at http://localhost:8787
+```
+
+### Testing
+
+```bash
+# Run tests
+pnpm run test
+
+# Test with specific provider
+curl -X POST "http://localhost:8787/v1/chat/completions" \
+  -H "Authorization: Bearer test-token" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "gpt-3.5-turbo#openai", "messages": [{"role": "user", "content": "test"}]}'
+```
+
+### Type Generation
+
+```bash
+# Generate Cloudflare Workers types
+pnpm run cf-typegen
+```
+
+## Architecture
+
+```
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   AI Clients    │───▶│ AI Gateway       │───▶│ Cloudflare AI   │
+│                 │    │ Adapter          │    │ Gateway         │
+│ • Codex         │    │ (Workers)        │    │                 │
+│ • Claude Code   │    │                  │    │ • Rate Limiting │
+│                 │    │ • Protocol Conv. │    │ • Monitoring    │
+│                 │    │ • Validation     │    │ • Cost Control  │
+│                 │    │ • Error Handling │    │ • BYOK Storage  │
+│                 │    │ • Image Support  │    │ • Caching       │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+                                                        │
+                                                        ▼
+                                                ┌─────────────────┐
+                                                │  AI Providers   │
+                                                │                 │
+                                                │ • OpenAI        │
+                                                │ • Anthropic     │
+                                                │ • Google        │
+                                                │ • Groq          │
+                                                │ • Mistral       │
+                                                │ • Others        │
+                                                └─────────────────┘
+```
+
+## Key Features
+
+### Format Conversion
+
+The proxy automatically converts between OpenAI and Anthropic message formats:
+
+- **System Messages**: Properly handled for each provider's requirements
+- **Tool Calls**: Function calling support across both formats
+- **Streaming**: Real-time streaming with proper Server-Sent Events formatting
+- **Error Handling**: Consistent error responses across providers
+- **Image Content**: Full support for vision models and multi-modal inputs
+
+### Request Validation
+
+- Input validation for both API formats
+- Model name validation with `model#provider` format
+- Authentication verification via Gateway Token
+- CORS handling for web applications
+- Content-type validation and parsing
+
+### Provider Integration
+
+- Dynamic provider routing based on model specification
+- Support for Cloudflare AI Gateway's unified endpoints
+- Azure OpenAI integration with deployment management
+- Automatic error handling and fallback responses
+- Special handling for provider-specific features (e.g., Mistral streaming options)
+
+## Monitoring and Analytics
+
+Leverage Cloudflare AI Gateway's built-in monitoring:
+
+1. **Request Analytics**: Track usage patterns, costs, and performance metrics
+2. **Rate Limiting**: Configure per-provider and per-user limits
+3. **Caching**: Reduce costs with intelligent response caching
+4. **Logs**: Detailed request and response logging with full audit trail
+5. **Cost Tracking**: Monitor spending across all providers
+6. **Error Analytics**: Track error rates and failure patterns
+
+Access analytics at: `https://dash.cloudflare.com/[account-id]/ai/ai-gateway/[gateway-id]`
+
+## Security Best Practices
+
+1. **Use BYOK**: Store API keys securely in Cloudflare rather than in code
+2. **Enable Gateway Authentication**: Protect your proxy with authentication tokens
+3. **Set Rate Limits**: Configure appropriate rate limits to prevent abuse
+4. **Monitor Usage**: Regularly review analytics for unusual patterns
+5. **Rotate Keys**: Periodically rotate both gateway tokens and provider API keys
+6. **Use HTTPS**: Always use HTTPS endpoints in production
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Invalid Model Format**: Ensure you're using `model#provider` format (not `provider/model`)
+2. **Authentication Errors**: Verify your Gateway Token is set correctly as a secret
+3. **Provider Errors**: Check that your provider API keys are valid and have sufficient credits
+4. **CORS Issues**: Ensure your client is sending proper headers for cross-origin requests
+
+### Debug Mode
+
+Enable debug logging by setting the `DEBUG` environment variable:
+
+```bash
+wrangler secret put DEBUG
+# Enter "true" when prompted
 ```
 
 ## Contributing
 
-Found a bug or want to add support for more providers? PRs are welcome!
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## Anthropic API Compatibility 🤖
+## License
 
-Apex AI Proxy provides comprehensive support for the Anthropic API format, enabling seamless integration with Claude Code and other Anthropic-compatible tools. This allows you to use any OpenAI-compatible provider (like DeepSeek, Azure OpenAI, etc.) with Anthropic ecosystem tools.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-### Use with Claude Code
+## Support
 
-1. **Install Claude Code**:
-```bash
-npm install -g @anthropic-ai/claude-code
-```
+- **Documentation**: [Cloudflare AI Gateway Docs](https://developers.cloudflare.com/ai-gateway/)
+- **Issues**: [GitHub Issues](https://github.com/loadchange/apex-ai-proxy/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/loadchange/apex-ai-proxy/discussions)
 
-2. **Configure Environment Variables**:
-```bash
-export ANTHROPIC_BASE_URL=https://your-proxy.workers.dev
-export ANTHROPIC_AUTH_TOKEN=your-configured-api-key
-export API_TIMEOUT_MS=600000
-export ANTHROPIC_MODEL=your-model-name
-export ANTHROPIC_SMALL_FAST_MODEL=your-fast-model-name
-```
+## Acknowledgments
 
-3. **Enter Your Project Directory and Execute Claude Code**:
-```bash
-cd my-project
-claude
-```
-
-### Use with Anthropic SDK
-
-1. **Install Anthropic SDK**:
-```bash
-pip install anthropic
-```
-
-2. **Configure and Use**:
-```python
-import anthropic
-
-client = anthropic.Anthropic(
-    base_url="https://your-proxy.workers.dev",
-    api_key="your-configured-api-key"
-)
-
-message = client.messages.create(
-    model="your-model-name",
-    max_tokens=1000,
-    system="You are a helpful assistant.",
-    messages=[
-        {
-            "role": "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Hi, how are you?"
-                }
-            ]
-        }
-    ]
-)
-print(message.content)
-```
-
-### Anthropic API Compatibility Details
-
-Our implementation provides comprehensive support for the Anthropic Messages API with automatic conversion to/from OpenAI format for backend providers.
-
-#### HTTP Headers
-
-| Field | Support Status | Notes |
-|-------|----------------|-------|
-| `anthropic-beta` | Fully Supported | Automatically set for tool use (`tools-2024-04-04`) |
-| `anthropic-version` | Fully Supported | Set to `2023-06-01` |
-| `x-api-key` | Fully Supported | Primary authentication method |
-
-#### Request Fields
-
-| Field | Support Status | Notes |
-|-------|----------------|-------|
-| `model` | Fully Supported | Routes to configured provider models |
-| `max_tokens` | Fully Supported | Required field, passed through to providers |
-| `messages` | Fully Supported | Full message format conversion |
-| `system` | Fully Supported | Supports both string and array formats |
-| `temperature` | Fully Supported | Range [0.0 ~ 2.0] |
-| `top_p` | Fully Supported | Passed through to compatible providers |
-| `top_k` | Ignored | Not supported by most OpenAI-compatible providers |
-| `stop_sequences` | Fully Supported | Converted to OpenAI `stop` parameter |
-| `stream` | Fully Supported | Full streaming support with proper event formatting |
-| `metadata` | Ignored | Not applicable for proxy use case |
-
-#### Tool Support
-
-| Field | Sub-Field | Support Status | Notes |
-|-------|-----------|----------------|-------|
-| `tools` | `name` | Fully Supported | Function name mapping |
-| | `description` | Fully Supported | Function description |
-| | `input_schema` | Fully Supported | JSON schema with automatic cleaning |
-| `tool_choice` | `auto` | Fully Supported | Default tool selection |
-| | `any` | Supported | Mapped to `auto` for OpenAI compatibility |
-| | `tool` | Fully Supported | Specific tool selection |
-| | `none` | Fully Supported | No tool usage |
-
-#### Message Content Types
-
-| Type | Sub-Field | Support Status | Notes |
-|------|-----------|----------------|-------|
-| `text` | `text` | Fully Supported | Plain text content |
-| `image` | | Not Supported | Requires provider-specific implementation |
-| `tool_use` | `id` | Fully Supported | Tool call identification |
-| | `name` | Fully Supported | Function name |
-| | `input` | Fully Supported | Function arguments |
-| `tool_result` | `tool_use_id` | Fully Supported | Tool response linking |
-| | `content` | Fully Supported | Tool execution results |
-| | `is_error` | Supported | Error state indication |
-
-#### Response Format
-
-| Field | Support Status | Notes |
-|-------|----------------|-------|
-| `id` | Fully Supported | Generated message ID |
-| `type` | Fully Supported | Always `message` |
-| `role` | Fully Supported | Always `assistant` |
-| `content` | Fully Supported | Array of content blocks |
-| `stop_reason` | Fully Supported | `end_turn`, `max_tokens`, `tool_use` |
-| `usage` | Fully Supported | Token usage statistics |
-
-#### Streaming Support
-
-| Event Type | Support Status | Notes |
-|------------|----------------|-------|
-| `message_start` | Fully Supported | Message initialization |
-| `content_block_start` | Fully Supported | Content block initialization |
-| `content_block_delta` | Fully Supported | Incremental content updates |
-| `content_block_stop` | Fully Supported | Content block completion |
-| `message_stop` | Fully Supported | Message completion |
-
-#### Advanced Features
-
-- **Automatic Protocol Conversion**: Seamlessly converts between Anthropic and OpenAI formats
-- **Tool Call Buffering**: Handles incremental tool call data in streaming responses
-- **Error Handling**: Comprehensive error mapping and user-friendly error messages
-- **Provider Fallback**: Automatic failover to alternative providers when available
-- **Schema Cleaning**: Removes unsupported JSON schema fields for provider compatibility
-
-#### Limitations
-
-- **Image Content**: Not supported (requires provider-specific multimodal implementations)
-- **Document Processing**: Not supported in current version
-- **Advanced Content Types**: Some specialized content types are not implemented
-- **Cache Control**: Caching directives are ignored (handled at proxy level)
-
-### Configuration Example for Anthropic API
-
-```javascript
-// Configure a model for Anthropic API usage
-const modelProviderConfig = {
-  'claude-3-sonnet': {
-    providers: [
-      {
-        provider: 'deepseek',
-        model: 'deepseek-chat',
-        base_url: 'https://api.deepseek.com/v1',
-        api_key: 'your-deepseek-key',
-      },
-      {
-        provider: 'azure',
-        model: 'gpt-4o',
-        base_url: 'https://your-azure.openai.azure.com',
-        api_key: 'your-azure-key',
-      },
-    ],
-  },
-};
-```
-
-This configuration allows you to use `claude-3-sonnet` as the model name in Anthropic API calls, while the proxy routes requests to your configured OpenAI-compatible providers.
-
-## Ready to Break Free from Rate Limits? 🚀
-
-[![Deploy Button](https://img.shields.io/badge/Deploy%20Now-%E2%86%92-%23FF6A00?style=for-the-badge&logo=cloudflare)](https://dash.cloudflare.com/?to=/:account/workers-and-pages)
+- [Cloudflare Workers](https://workers.cloudflare.com/) for the serverless platform
+- [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) for AI provider management
+- All the AI providers for their excellent APIs

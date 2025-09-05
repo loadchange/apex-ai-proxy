@@ -4,10 +4,8 @@ interface Env {
   ACCOUNT_ID: string;
   GATEWAY_ID: string;
   GatewayToken: any;
-  ANTHROPIC_API_KEY: any;
 
   AZURE_RESOURCE?: string;
-  AZURE_DEPLOYMENT?: string;
   AZURE_API_VERSION?: string;
 }
 

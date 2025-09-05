@@ -33,13 +33,23 @@ export function verifyApiKey(request: Request, apiKey?: string): boolean {
 
 const OPENAI_ENDPOINT = ['cerebras', 'deepseek', 'groq', 'openai', 'perplexity-ai'];
 const OPENAI_V1_ENDPOINT = ['grok', 'mistral', 'openrouter'];
-const SUPPORTED_ENDPOINTS = ['azure-openai', 'anthropic', ...OPENAI_ENDPOINT, ...OPENAI_V1_ENDPOINT];
+const SUPPORTED_ENDPOINTS = ['azure-openai', 'anthropic', 'google-ai-studio', ...OPENAI_ENDPOINT, ...OPENAI_V1_ENDPOINT];
+const SUPPORTED_UNIFIED_API_ENDPOINTS = ['anthropic', 'openai', 'groq', 'mistral', 'google-ai-studio', 'grok', 'deepseek', 'cerebras'];
+
+export function isSupportedUnifiedApiEndpoint(provider: string): boolean {
+  return SUPPORTED_UNIFIED_API_ENDPOINTS.includes(provider);
+}
 
 export function urlBuilder(endpoint: string, provider: string, azureConfig?: AzureConfig) {
   const urlFragment = [endpoint];
   if (!SUPPORTED_ENDPOINTS.includes(provider)) {
     throw new Error(`Unsupported provider: ${provider}`);
   }
+
+  if (isSupportedUnifiedApiEndpoint(provider)) {
+    return `${endpoint}/compat/chat/completions`;
+  }
+
   urlFragment.push(provider);
 
   if (provider === 'anthropic') {
@@ -59,7 +69,9 @@ export function urlBuilder(endpoint: string, provider: string, azureConfig?: Azu
     urlFragment.push('v1');
   }
 
-  urlFragment.push(`chat/completions${provider === 'azure-openai' ? '?api-version=${azureConfig.apiVersion}' : ''}`);
+  urlFragment.push(
+    `chat/completions${provider === 'azure-openai' ? `?api-version=${azureConfig?.apiVersion ?? '2025-04-01-preview'}` : ''}`,
+  );
   return urlFragment.join('/');
 }
 
@@ -71,12 +83,27 @@ export function formatErrorResponse(message: string, type: string = 'internal_er
     error: { message, type },
   };
 
-  return new Response(JSON.stringify(errorResponse), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-    },
+  return corsWrapper(
+    new Response(JSON.stringify(errorResponse), {
+      status,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }),
+  );
+}
+
+export function corsWrapper(response: Response): Response {
+  const corsHeaders: { [key: string]: string } = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+    'Access-Control-Max-Age': '86400',
+  };
+  Object.keys(corsHeaders).forEach((key) => {
+    response.headers.set(key, corsHeaders[key]);
   });
+  return response;
 }
 
 /**

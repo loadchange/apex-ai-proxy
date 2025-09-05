@@ -3,7 +3,7 @@
  */
 
 import type { ChatCompletionRequest, ErrorResponse, AzureConfig } from './types';
-import { formatErrorResponse, urlBuilder } from './utils';
+import { formatErrorResponse, urlBuilder, isSupportedUnifiedApiEndpoint } from './utils';
 
 /**
  * Handle /v1/chat/completions request
@@ -32,25 +32,27 @@ export async function handleChatCompletionsRequest(
 
   const [model, provider] = modelName.split('#');
 
-  requestBody.messages = (requestBody.messages || []).map((message) => {
-    if (!message.content) {
-      message.content = [];
-    }
-    return message;
-  });
+  // requestBody.messages = (requestBody.messages || []).map((message) => {
+  //   if (!message.content) {
+  //     message.content = [];
+  //   }
+  //   return message;
+  // });
 
   if (provider === 'mistral' && requestBody?.stream_options?.include_usage) {
     delete requestBody.stream_options.include_usage;
   }
 
-  const url = urlBuilder(endpoint, provider, azureConfig);
+  const url = urlBuilder(endpoint, provider, { ...azureConfig, deployment: model });
   const init: RequestInit<RequestInitCfProperties> = {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'cf-aig-authorization': `Bearer ${api_key}`,
     },
-    body: JSON.stringify(Object.assign({}, requestBody, { model: model })),
+    body: JSON.stringify(
+      Object.assign({}, requestBody, { model: isSupportedUnifiedApiEndpoint(provider) ? [provider, model].join('/') : model }),
+    ),
   };
   const providerResponse = await fetch(url, init);
   if (!providerResponse.ok) {
