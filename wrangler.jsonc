@@ -11,12 +11,12 @@
     "ACCOUNT_ID": "",
     "GATEWAY_ID": "",
     "AZURE_RESOURCE": "",
-    "AZURE_API_VERSION": ""
+    "AZURE_API_VERSION": "2025-04-01-preview"
   },
   "secrets_store_secrets": [
     {
-      "binding": "",
-      "secret_name": "",
+      "binding": "GatewayToken",
+      "secret_name": "GatewayToken",
       "store_id": ""
     }
   ]
